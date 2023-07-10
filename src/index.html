@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simplest MIDI input</title>
+</head>
+<body>
+
+    <div id="currentMidiNotes">
+
+    </div>
+
+    <div id="currentNotes">
+
+    </div>
+
+    <script>
+
+
+        var arrayOfAmericanNotes = [
+            "C",
+            "C#",
+            "D",
+            "D#",
+            "E",
+            "F",
+            "F#",
+            "G",
+            "G#",
+            "A",
+            "A#",
+            "B"];
+
+        var arrayOfNotes = [
+            "Do",
+            "Do#",
+            "Re",
+            "Re#",
+            "Mi",
+            "Fa",
+            "Fa#",
+            "Sol",
+            "Sol#",
+            "La",
+            "La#",
+            "Si"
+        ];
+
+        var getNoteFromMidiNote = function (midiNote) {
+            var note = arrayOfNotes[midiNote % 12];
+            var octave = Math.floor(midiNote / 12) - 1;
+            return note + octave;
+        }         
+        
+        var getAmericanNoteFromMidiNote = function (midiNote) {
+            var note = arrayOfAmericanNotes[midiNote % 12];
+            var octave = Math.floor(midiNote / 12) - 1;
+            return note + octave;
+        }
+        
+        var currentMidiNotes = [];
+        var currentNotes = [];
+        
+        function addNote (note) {
+            currentMidiNotes.push(note);
+            currentNotes.push(getNoteFromMidiNote (note));
+            document.getElementById("currentMidiNotes").innerHTML = currentMidiNotes;
+            document.getElementById("currentNotes").innerHTML = currentNotes;
+        }
+
+        function removeNote (note) {
+
+            // MIDI note is removed
+            var index = currentMidiNotes.indexOf(note);
+            if (index > -1) {
+                currentMidiNotes.splice(index, 1);
+            }
+
+            // Note is removed
+            var index = currentNotes.indexOf(getNoteFromMidiNote (note));
+            if (index > -1) {
+                currentNotes.splice(index, 1);
+            }
+
+            document.getElementById("currentMidiNotes").innerHTML = currentMidiNotes;
+            document.getElementById("currentNotes").innerHTML = currentNotes;
+        }
+
+        function onMIDIMessage (message) {
+
+            var type = message.data[0];
+
+            if(type != 248) {
+
+                if (type == 144) {
+                    console.log("note on");
+                    addNote (message.data[1]);
+                } else if (type == 128) {
+                    console.log("note off");
+                    removeNote (message.data[1]);
+                }
+
+                console.log(message.data);
+
+                var note = message.data[1];
+                var velocity = (message.data[2] / 127);
+                var time = message.timeStamp;
+                var type = message.data[0];
+                var channel = message.data[0] & 0xf;
+                // var noteOn = message.data[0] & 0xf0;
+                // var noteOff = message.data[0] & 0x80;
+                // var noteNumber = message.data[1];
+                // var noteVelocity = message.data[2];
+                // var noteOffVelocity = message.data[2];
+                // var noteOnVelocity = message.data[2];
+                // var noteOffTime = message.timeStamp;
+                // var noteOnTime = message.timeStamp;
+                // var noteOffType = message.data[0];
+                // var noteOnType = message.data[0];
+                // var noteOffChannel = message.data[0] & 0xf;
+                // var noteOnChannel = message.data[0] & 0xf;
+                // var noteOffNote = message.data[1];
+                // var noteOnNote = message.data[1];
+                // var noteOffVelocity = message.data[2];
+                // var noteOnVelocity = message.data[2];
+                // var noteOffVelocity = message.data[2];
+                // var noteOnVelocity = message.data[2];
+                // var noteOffVelocity = message.data[2];
+                // var noteOnVelocity = message.data[2];
+                // var noteOffVelocity = message.data[2];
+
+                console.log("-----> type: " + type);
+                console.log("note: " + note);
+                console.log("velocity: " + velocity);
+                console.log("time: " + time);
+                console.log("channel: " + channel);
+            }
+        }
+
+        function success (midi) {
+            console.log('Got midi!', midi);
+            var inputs = midi.inputs.values();
+            for (var input = inputs.next();
+                input && !input.done;
+                input = inputs.next()) {
+                // each time there is a midi message call the onMIDIMessage function 
+                input.value.onmidimessage = onMIDIMessage;
+            }
+        }
+
+        function failure () {
+            console.error('No access to your midi devices.')
+        }
+
+        if (navigator.requestMIDIAccess) {
+            console.log('Browser supports MIDI!');
+            navigator.requestMIDIAccess().then(success, failure);
+        } else {
+            console.log('Browser does not support MIDI!');
+        }
+
+    </script>
+</body>
+</html>
