@@ -5,6 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Simplest MIDI input</title>
+    <link rel="stylesheet" href="keyboard.css">
 </head>
 <body>
 
@@ -16,9 +17,13 @@
 
     </div>
 
+
+    <div id="keyboard">
+
+    </div>
+
     <script>
-
-
+        
         var arrayOfAmericanNotes = [
             "C",
             "C#",
@@ -68,6 +73,10 @@
             currentNotes.push(getNoteFromMidiNote (note));
             document.getElementById("currentMidiNotes").innerHTML = currentMidiNotes;
             document.getElementById("currentNotes").innerHTML = currentNotes;
+
+            // iluminate the key
+            var el = document.getElementById("key" + note);
+            el.classList.add("activeKey");
         }
 
         function removeNote (note) {
@@ -86,6 +95,10 @@
 
             document.getElementById("currentMidiNotes").innerHTML = currentMidiNotes;
             document.getElementById("currentNotes").innerHTML = currentNotes;
+
+            // remove the ilumination of the key
+            var el = document.getElementById("key" + note);
+            el.classList.remove("activeKey");
         }
 
         function onMIDIMessage (message) {
@@ -109,27 +122,6 @@
                 var time = message.timeStamp;
                 var type = message.data[0];
                 var channel = message.data[0] & 0xf;
-                // var noteOn = message.data[0] & 0xf0;
-                // var noteOff = message.data[0] & 0x80;
-                // var noteNumber = message.data[1];
-                // var noteVelocity = message.data[2];
-                // var noteOffVelocity = message.data[2];
-                // var noteOnVelocity = message.data[2];
-                // var noteOffTime = message.timeStamp;
-                // var noteOnTime = message.timeStamp;
-                // var noteOffType = message.data[0];
-                // var noteOnType = message.data[0];
-                // var noteOffChannel = message.data[0] & 0xf;
-                // var noteOnChannel = message.data[0] & 0xf;
-                // var noteOffNote = message.data[1];
-                // var noteOnNote = message.data[1];
-                // var noteOffVelocity = message.data[2];
-                // var noteOnVelocity = message.data[2];
-                // var noteOffVelocity = message.data[2];
-                // var noteOnVelocity = message.data[2];
-                // var noteOffVelocity = message.data[2];
-                // var noteOnVelocity = message.data[2];
-                // var noteOffVelocity = message.data[2];
 
                 console.log("-----> type: " + type);
                 console.log("note: " + note);
@@ -160,6 +152,39 @@
         } else {
             console.log('Browser does not support MIDI!');
         }
+
+        function getKeyboardHtml (startOctave, numOctaves, startNote){
+            if (startNote == undefined) {
+                startNote = 0;
+            }
+            var str = "";
+            var cont = 0;
+            for (var octave = startOctave; octave < startOctave + numOctaves; octave++) {
+                for (var note = 0; note < 12; note++) {
+                    var noteName = arrayOfNotes[note];
+                    var noteNumber = note + (octave * 12);
+                    // width 25, height 75
+                    // width 50, height 150
+                    var W = 25, H = 75;
+                    //attach a different style to black keys and white keys. And attach a different left position to each key as a style attribute starting from 0px.
+                    if (noteName.indexOf("#") > -1) {
+                        str += "<div class='blackKey' id='key" + noteNumber + "' onclick='addNote (" + noteNumber + ")' style='left:"+ ((cont * W)-(W/2-2)) +"px'><span>" + noteName + "</span></div>"; //+ octave + 
+                    } else {
+                        str += "<div class='key' id='key" + noteNumber + "' onclick='addNote (" + noteNumber + ")' style='left:"+ cont *W +"px'><span>" + noteName + "</span></div>"; //octave + 
+                        cont++;
+                    }
+                }
+            }
+            return str;
+        }
+
+        function paintKeyboard () {
+            document.getElementById("keyboard").innerHTML = getKeyboardHtml (0, 8, 0);
+        }
+
+        document.addEventListener("DOMContentLoaded", function(event) {
+            paintKeyboard ();
+        });
 
     </script>
 </body>
