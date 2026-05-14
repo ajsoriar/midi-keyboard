@@ -2,109 +2,98 @@
 
 ## Project overview
 
-This repository contains a Smart TV application.
+This repository contains a small browser app for visualizing and interacting with a MIDI piano keyboard.
 
-The project targets multiple TV platforms, including:
+It is not a Smart TV app. Do not apply Tizen, WebOS, HbbTV, TV remote-control, or Smart TV packaging assumptions unless a future task explicitly adds that target.
 
-- HTML5 browser
-- Tizen
-- WebOS
-- HbbTV
+The current app is plain HTML, CSS, and JavaScript:
 
-Performance on older devices is important. Avoid unnecessary renders, heavy parsing, large loops in render paths, and excessive memory usage.
+- `src/index.html` loads the page.
+- `src/app.css` contains page-level styles.
+- `src/components/keyboard/keyboard.js` defines the `<midi-keyboard>` web component and the global `Piano` API.
+
+The app uses the browser Web MIDI API when available. It should continue to work as a regular browser page even when MIDI access is unavailable.
 
 ## Main rules
 
 - Prefer simple, explicit JavaScript.
-- Do not use TypeScript.
-- Keep code compatible with older browser engines when possible.
-- Avoid modern syntax if it may break old WebOS/HbbTV browsers unless transpilation/polyfills are confirmed.
+- Do not use TypeScript unless the project is intentionally migrated.
+- Do not introduce a framework or build system unless clearly requested.
 - Do not introduce new dependencies unless clearly justified.
-- Preserve existing architecture and naming conventions.
+- Preserve the existing custom element approach.
 - Keep changes minimal and focused.
 - Do not reformat unrelated files.
-- Add defensive checks for undefined/null values.
+- Add defensive checks for undefined/null values where user input, MIDI input, or DOM lookup may fail.
 - Prefer readable code over clever abstractions.
-- Do not edit generated output under `dist/` or packaged platform templates unless the task explicitly requires it.
-- Be aware that some project commands update `.env` from `package.json`; mention that side effect when it matters.
-- Never deploy or upload to `dev`, `pre`, or `prod` environments. Deployment operations must be executed manually by the developer.
+- Keep public interfaces backward compatible when changing function signatures.
 
 ## JavaScript rules
 
-- Prefer plain JavaScript modules and functions over framework-specific patterns.
+- Use plain JavaScript modules and browser APIs.
 - Keep state handling simple and explicit.
-- Avoid repeated DOM updates in loops; batch updates when possible.
-- Avoid expensive calculations in rendering or event handlers.
-- Avoid mutating shared objects directly; derive local values or clone when needed.
-- Keep public interfaces backward compatible when changing function signatures.
+- Avoid repeated DOM updates in loops; build HTML strings or fragments, then update the DOM once.
+- Avoid expensive calculations in rendering or MIDI event handlers.
+- Keep MIDI note numbering consistent with the standard range `0..127`.
+- Use the existing note/octave convention: MIDI `60` is `Do4` / `C4`, the central C.
+- If adding public methods, expose them through the existing `Piano` object only when they are meant for external use.
 
-## Smart TV / remote control rules
+## Piano API
 
-- Navigation is usually controlled by keyboard/remote events.
-- Do not break focus management.
-- Preserve support for arrow keys, OK/Enter, Back/Escape where applicable.
-- Avoid relying on mouse-only behavior.
-- Avoid layout changes that may affect TV navigation.
+The browser global `Piano` is the external API for controlling the component:
+
+```js
+Piano.init(1, 8);
+Piano.clear();
+Piano.init(4, 9);
+```
+
+Rules for `Piano.init(startOctave, endOctave)`:
+
+- `startOctave` must be lower than `endOctave`.
+- Valid octave values are `-1..9`, matching the MIDI range.
+- Invalid input should log an error to the console and paint the full piano.
+- The painted MIDI range must be clamped to `0..127`; MIDI ends at `Sol9` / `G9`.
+
+`Piano.clear()` should remove the painted keyboard and reset active note state.
 
 ## Styling rules
 
-- Prefer existing CSS conventions.
-- Avoid unnecessary animations on low-end TV platforms.
-- Keep text overflow safe.
-- Avoid UI changes that may cause clipping on small or old screens.
+- Prefer existing CSS conventions inside the component.
+- Keep text readable and avoid clipping.
+- Keep the piano layout stable: key widths, octave markers, and note labels should not shift during interaction.
+- The central C key, MIDI `60`, should remain visually distinguishable unless a task says otherwise.
+- Active notes should remain obvious and should override default key colors while active.
 
-## API / data rules
+## Browser behavior
 
-- Avoid repeated API calls for the same data.
-- Reuse existing cache/memory mechanisms when available.
-- Keep JSON payload handling efficient.
-- Validate optional fields before use.
+- The app is intended for normal desktop/mobile browsers.
+- Mouse/touch interaction may be used.
+- Keyboard or TV remote navigation is not a requirement.
+- MIDI support depends on the browser; unsupported MIDI should fail gracefully with a console message.
 
 ## Testing / validation
 
-Before considering a task complete, check:
+Before considering a task complete, check the most relevant items:
 
-- The app builds successfully.
-- No obvious console errors are introduced.
-- Navigation still works with keyboard/remote.
-- Low-end platform behavior is not made worse.
-- Existing public APIs remain compatible.
+- `node --check src/components/keyboard/keyboard.js`
+- The page loads without obvious console errors.
+- `Piano.init(...)` paints the expected octave range.
+- `Piano.clear()` removes the keyboard and resets note state.
+- Invalid `Piano.init(...)` input logs an error and paints the full piano.
 
-## Commands
-
-Common commands:
-
-```bash
-npm install
-npm run dev-local:prod
-npm run build:smarttv:hosted_webapp:dev
-npm run build:hbbtv:hosted_webapp:dev
-npm run lint
-```
-
-If a command fails because dependencies are missing, do not invent a workaround. Report the exact problem and suggest the minimal fix.
-
-`npm run lint` currently scans broad repository areas, including template files, so prefer a file-scoped `npx eslint path/to/file.js` check when validating a targeted change.
-
-Do not run deploy commands such as `npm run deploy:*`; deployments to `dev`, `pre`, and `prod` are developer-only operations.
+There is currently no package manager setup or npm build pipeline in this repository. Do not invent npm commands unless project files are added to support them.
 
 ## Commit style
 
 Use short English commit messages.
 
-**Important:** Generate commit messages based **only on the staged changes** using `git diff --cached`. Do not include unstaged changes in the analysis.
-
-Use the Jira-prefixed style only when the current branch starts with an `AJSR-XXXX` ticket code. If the branch does not start with a ticket code, do not add a prefix.
-
-If `BUILD_NUMBER` is modified, use `upgrade build number to xxx`, replacing `xxx` with the new build number.
+Generate commit messages based only on staged changes using `git diff --cached`. Do not include unstaged changes in the analysis.
 
 Examples:
 
-- AJSR-1234 Fix text overflow in settings panel
-- AJSR-1234 Disable settings panel in demo mode
-- AJSR-1234 Improve image fallback handling
-- Fix menu ordering in home page
-- Upgrade build number to 352
+- Add octave range API
+- Mark middle C on keyboard
+- Fix MIDI range rendering
 
 ## Output style
 
@@ -113,4 +102,4 @@ When proposing code changes:
 - Explain the problem briefly.
 - Provide the smallest useful patch.
 - Mention risks or compatibility concerns.
-- Prefer copy-paste-ready code when possible.
+- Prefer copy-paste-ready code when useful.
