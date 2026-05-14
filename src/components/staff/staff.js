@@ -561,7 +561,18 @@ window.Staff = {
     },
 
     init: function (startOctave, endOctave, lineSpacing, clef) {
-        var clefType = clef || "SOL";
+        var clefType = clef;
+
+        if (typeof lineSpacing === "string" && clefType === undefined) {
+            clefType = lineSpacing;
+        }
+
+        if (clefType === undefined) {
+            clefType = "SOL";
+        }
+
+        clefType = String(clefType).toUpperCase();
+
         var elementId = "music-staff-" + clefType;
         var container = document.getElementById("staffs-container");
 
@@ -582,13 +593,14 @@ window.Staff = {
     },
 
     clear: function () {
-        var self = this;
-        Object.keys(this.staffs).forEach(function (clef) {
-            var staff = self.staffs[clef];
-            if (staff) {
-                staff.clear();
-            }
-        });
+        var container = document.getElementById("staffs-container");
+        if (!container) {
+            console.error("No #staffs-container found in DOM.");
+            return;
+        }
+
+        container.innerHTML = "";
+        this.staffs = {};
     },
 
     highlight: function (notes) {
