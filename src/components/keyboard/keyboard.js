@@ -229,6 +229,14 @@ class MidiKeyboard extends HTMLElement {
             return;
         }
 
+        if (noteNames.length === 0) {
+            var allNotes = this.currentMidiNotes.slice();
+            for (var j = 0; j < allNotes.length; j++) {
+                this.removeNote(allNotes[j]);
+            }
+            return;
+        }
+
         for (var i = 0; i < noteNames.length; i++) {
             var midiNote = this.getMidiFromNoteName(noteNames[i]);
             if (midiNote === null) {
