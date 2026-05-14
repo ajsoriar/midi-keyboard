@@ -34,19 +34,67 @@ MIDI and piano rules:
 The browser global `Piano` is the external control API:
 
 ```js
-Piano.init(1, 8);
+Piano.initOctave(1, 8);
+Piano.initMidi(21, 108);
+Piano.initRange("A0", "C8");
 Piano.clear();
-Piano.init(4, 9);
 ```
 
-Rules for `Piano.init(startOctave, endOctave)`:
+Rules for `Piano.initOctave(startOctave, endOctave)`:
 
 - `startOctave` must be lower than `endOctave`.
 - Valid octave values are `-1..9`.
 - Invalid input should log an error to the console and paint the full piano.
 - Clamp painted notes to MIDI `0..127`.
 
+Rules for `Piano.initMidi(startMidiNote, endMidiNote)`:
+
+- MIDI values must be integers in `0..127`.
+- `startMidiNote` must be lower than `endMidiNote`.
+- Invalid input should log an error and paint the full piano.
+
+Rules for `Piano.initRange(startNoteName, endNoteName)`:
+
+- Note names may use English (`A0`, `Bb3`, `C#4`) or Spanish (`La0`, `Sib3`, `Do#4`).
+- A standard 88-key piano should use `Piano.initRange("A0", "C8")`.
+- Invalid input should log an error and paint the full piano.
+
+`Piano.init(...)` is kept as a backward-compatible alias for `Piano.initOctave(...)`.
+
 `Piano.clear()` should remove the painted keyboard and reset active note state.
+
+The browser global `Staff` controls the music staff component:
+
+```js
+Staff.initOctave(2, 5, 12, "FA");
+Staff.initMidi(21, 59, "FA");
+Staff.initRange("A0", "B3", "FA");
+Staff.initRange("C4", "C8", "SOL");
+Staff.clear();
+```
+
+Rules for `Staff.initOctave(startOctave, endOctave, lineSpacing, clef)`:
+
+- `startOctave` must be lower than `endOctave`.
+- Valid octave values are `-1..9`.
+- `lineSpacing` is optional and defaults to `10` pixels.
+- `clef` is optional and defaults to `"SOL"`.
+- Supported clefs are `"SOL"`, `"FA"`, and `"DO"`.
+- Invalid octave input should log an error and paint the full staff.
+
+Rules for `Staff.initMidi(startMidiNote, endMidiNote, lineSpacing, clef)`:
+
+- MIDI values must be integers in `0..127`.
+- `startMidiNote` must be lower than `endMidiNote`.
+- Invalid input should log an error and paint the full staff.
+
+Rules for `Staff.initRange(startNoteName, endNoteName, lineSpacing, clef)`:
+
+- Note names may use English (`A0`, `Bb3`, `C#4`) or Spanish (`La0`, `Sib3`, `Do#4`).
+- Recommended piano split: `Staff.initRange("A0", "B3", "FA")` and `Staff.initRange("C4", "C8", "SOL")`.
+- Invalid input should log an error and paint the full staff.
+
+`Staff.init(...)` is kept as a backward-compatible alias for `Staff.initOctave(...)`.
 
 Browser behavior:
 
@@ -58,8 +106,10 @@ Browser behavior:
 When validating changes:
 
 - Prefer `node --check src/components/keyboard/keyboard.js` for JavaScript syntax checks.
+- Also run `node --check src/components/staff/staff.js` when the staff component changes.
+- Also run `node --check src/App.js` when the app entrypoint changes.
 - Check that the page can load without obvious console errors when relevant.
-- Check `Piano.init(...)`, `Piano.clear()`, and invalid `Piano.init(...)` behavior when those areas change.
+- Check the relevant `initOctave(...)`, `initMidi(...)`, `initRange(...)`, and `clear()` behavior when those areas change.
 - There is currently no package manager setup or npm build pipeline. Do not invent npm commands unless project files are added to support them.
 
 When fixing bugs:

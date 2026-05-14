@@ -71,14 +71,14 @@ class StaffComponent extends HTMLElement {
 
                 #staffContainer {
                     position: relative;
-                    margin: 20px 0;
+                    margin: 0 0;
                     overflow-x: auto;
                 }
 
                 .staff {
                     position: relative;
                     width: 100%;
-                    margin-bottom: 20px;
+                    margin-bottom: 0px;
                 }
 
                 .staffLine {
@@ -149,9 +149,9 @@ class StaffComponent extends HTMLElement {
                 }
 
                 .note.active {
-                    background-color: #00ff00;
-                    color: #000;
-                    box-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
+                    background-color: #0000ff;
+                    color: #ffffff;
+                    box-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
                 }
             </style>
 
@@ -172,7 +172,7 @@ class StaffComponent extends HTMLElement {
         return note + octave;
     }
 
-    getMidiFromNoteName(noteName) {
+    getMidiFromNoteName(noteName, skipRangeCheck) {
         if (typeof noteName !== "string") {
             return null;
         }
@@ -182,7 +182,9 @@ class StaffComponent extends HTMLElement {
             return null;
         }
 
-        var match = value.match(/^([A-Za-z#]+)(-?\d+)$/);
+        value = value.replace("♯", "#").replace("♭", "b");
+
+        var match = value.match(/^([A-Za-z#b]+)(-?\d+)$/);
         if (!match) {
             return null;
         }
@@ -192,28 +194,42 @@ class StaffComponent extends HTMLElement {
         var noteToPitchClass = {
             do: 0,
             "do#": 1,
+            dob: 11,
             re: 2,
             "re#": 3,
+            reb: 1,
             mi: 4,
+            mib: 3,
             fa: 5,
             "fa#": 6,
+            fab: 4,
             sol: 7,
             "sol#": 8,
+            solb: 6,
             la: 9,
             "la#": 10,
+            lab: 8,
             si: 11,
+            sib: 10,
             c: 0,
             "c#": 1,
+            cb: 11,
             d: 2,
             "d#": 3,
+            db: 1,
             e: 4,
+            eb: 3,
             f: 5,
             "f#": 6,
+            fb: 4,
             g: 7,
             "g#": 8,
+            gb: 6,
             a: 9,
             "a#": 10,
-            b: 11
+            ab: 8,
+            b: 11,
+            bb: 10
         };
         var pitchClass = noteToPitchClass[rawName];
 
@@ -222,7 +238,7 @@ class StaffComponent extends HTMLElement {
         }
 
         var midiNote = (octave + 1) * 12 + pitchClass;
-        if (midiNote < this.minMidiNote || midiNote > this.maxMidiNote) {
+        if (!skipRangeCheck && (midiNote < this.minMidiNote || midiNote > this.maxMidiNote)) {
             return null;
         }
 
@@ -487,7 +503,28 @@ class StaffComponent extends HTMLElement {
         return normalizedClef;
     }
 
-    init(startOctave, endOctave, lineSpacing, clef) {
+    applyLineSpacing(lineSpacing) {
+        if (lineSpacing === undefined) {
+            lineSpacing = 10;
+        }
+
+        if (typeof lineSpacing !== "number" || lineSpacing <= 0) {
+            console.error("Staff lineSpacing debe ser un numero positivo. Usando 10px.");
+            this.lineSpacing = 10;
+        } else {
+            this.lineSpacing = lineSpacing;
+        }
+    }
+
+    isValidMidiRange(startMidiNote, endMidiNote) {
+        return Number.isInteger(startMidiNote) &&
+            Number.isInteger(endMidiNote) &&
+            startMidiNote >= 0 &&
+            endMidiNote <= 127 &&
+            startMidiNote < endMidiNote;
+    }
+
+    initOctave(startOctave, endOctave, lineSpacing, clef) {
         if (startOctave === undefined) {
             startOctave = 0;
         }
@@ -498,9 +535,6 @@ class StaffComponent extends HTMLElement {
             clef = lineSpacing;
             lineSpacing = 10;
         }
-        if (lineSpacing === undefined) {
-            lineSpacing = 10;
-        }
 
         if (
             !Number.isInteger(startOctave) ||
@@ -509,7 +543,7 @@ class StaffComponent extends HTMLElement {
             startOctave < -1 ||
             endOctave > 9
         ) {
-            console.error("Staff.init(startOctave, endOctave, lineSpacing, clef) requires integer octaves between -1 and 9, and startOctave must be less than endOctave. Painting full staff.");
+            console.error("Staff.initOctave(startOctave, endOctave, lineSpacing, clef) requires integer octaves between -1 and 9, and startOctave must be less than endOctave. Painting full staff.");
             this.startOctave = -1;
             this.endOctave = 9;
         } else {
@@ -517,19 +551,53 @@ class StaffComponent extends HTMLElement {
             this.endOctave = endOctave;
         }
 
-        if (typeof lineSpacing !== "number" || lineSpacing <= 0) {
-            console.error("Staff.init(startOctave, endOctave, lineSpacing, clef) requires lineSpacing to be a positive number. Using 10px.");
-            this.lineSpacing = 10;
-        } else {
-            this.lineSpacing = lineSpacing;
+        this.applyLineSpacing(lineSpacing);
+        this.clef = this.normalizeClef(clef);
+        this.initMidi(Math.max(0, (this.startOctave + 1) * 12), Math.min(127, (this.endOctave + 1) * 12 + 11), this.lineSpacing, this.clef);
+    }
+
+    initMidi(startMidiNote, endMidiNote, lineSpacing, clef) {
+        if (typeof lineSpacing === "string" && clef === undefined) {
+            clef = lineSpacing;
+            lineSpacing = 10;
         }
 
-        this.clef = this.normalizeClef(clef);
+        if (!this.isValidMidiRange(startMidiNote, endMidiNote)) {
+            console.error("Staff.initMidi(startMidiNote, endMidiNote, lineSpacing, clef) requires MIDI notes between 0 and 127, and startMidiNote must be less than endMidiNote. Painting full staff.");
+            startMidiNote = 0;
+            endMidiNote = 127;
+        }
 
-        this.minMidiNote = Math.max(0, (this.startOctave + 1) * 12);
-        this.maxMidiNote = Math.min(127, (this.endOctave + 1) * 12 + 11);
+        this.applyLineSpacing(lineSpacing);
+        this.clef = this.normalizeClef(clef);
+        this.startOctave = Math.floor(startMidiNote / 12) - 1;
+        this.endOctave = Math.floor(endMidiNote / 12) - 1;
+        this.minMidiNote = startMidiNote;
+        this.maxMidiNote = endMidiNote;
 
         this.drawStaff();
+    }
+
+    initRange(startNoteName, endNoteName, lineSpacing, clef) {
+        if (typeof lineSpacing === "string" && clef === undefined) {
+            clef = lineSpacing;
+            lineSpacing = 10;
+        }
+
+        var startMidiNote = this.getMidiFromNoteName(startNoteName, true);
+        var endMidiNote = this.getMidiFromNoteName(endNoteName, true);
+
+        if (startMidiNote === null || endMidiNote === null) {
+            console.error("Staff.initRange(startNoteName, endNoteName, lineSpacing, clef) requires valid notes, for example \"A0\" and \"C8\". Painting full staff.");
+            this.initMidi(0, 127, lineSpacing, clef);
+            return;
+        }
+
+        this.initMidi(startMidiNote, endMidiNote, lineSpacing, clef);
+    }
+
+    init(startOctave, endOctave, lineSpacing, clef) {
+        this.initOctave(startOctave, endOctave, lineSpacing, clef);
     }
 
     clear() {
@@ -560,7 +628,7 @@ window.Staff = {
         return [];
     },
 
-    init: function (startOctave, endOctave, lineSpacing, clef) {
+    getClefType: function (lineSpacing, clef) {
         var clefType = clef;
 
         if (typeof lineSpacing === "string" && clefType === undefined) {
@@ -573,12 +641,15 @@ window.Staff = {
 
         clefType = String(clefType).toUpperCase();
 
-        var elementId = "music-staff-" + clefType;
+        return clefType;
+    },
+
+    getOrCreateStaff: function (elementId) {
         var container = document.getElementById("staffs-container");
 
         if (!container) {
             console.error("No #staffs-container found in DOM.");
-            return;
+            return null;
         }
 
         var staff = document.getElementById(elementId);
@@ -588,8 +659,44 @@ window.Staff = {
             container.appendChild(staff);
         }
 
-        this.staffs[clefType] = staff;
-        staff.init(startOctave, endOctave, lineSpacing, clefType);
+        this.staffs[elementId] = staff;
+        return staff;
+    },
+
+    initOctave: function (startOctave, endOctave, lineSpacing, clef) {
+        var clefType = this.getClefType(lineSpacing, clef);
+        var staff = this.getOrCreateStaff("music-staff-octave-" + clefType + "-" + startOctave + "-" + endOctave);
+        if (!staff) {
+            return;
+        }
+
+        staff.initOctave(startOctave, endOctave, lineSpacing, clefType);
+    },
+
+    initMidi: function (startMidiNote, endMidiNote, lineSpacing, clef) {
+        var clefType = this.getClefType(lineSpacing, clef);
+        var staff = this.getOrCreateStaff("music-staff-midi-" + clefType + "-" + startMidiNote + "-" + endMidiNote);
+        if (!staff) {
+            return;
+        }
+
+        staff.initMidi(startMidiNote, endMidiNote, lineSpacing, clefType);
+    },
+
+    initRange: function (startNoteName, endNoteName, lineSpacing, clef) {
+        var clefType = this.getClefType(lineSpacing, clef);
+        var normalizedStart = String(startNoteName).replace("#", "sharp").replace("♯", "sharp").replace("♭", "b").replace(/[^A-Za-z0-9]/g, "");
+        var normalizedEnd = String(endNoteName).replace("#", "sharp").replace("♯", "sharp").replace("♭", "b").replace(/[^A-Za-z0-9]/g, "");
+        var staff = this.getOrCreateStaff("music-staff-range-" + clefType + "-" + normalizedStart + "-" + normalizedEnd);
+        if (!staff) {
+            return;
+        }
+
+        staff.initRange(startNoteName, endNoteName, lineSpacing, clefType);
+    },
+
+    init: function (startOctave, endOctave, lineSpacing, clef) {
+        this.initOctave(startOctave, endOctave, lineSpacing, clef);
     },
 
     clear: function () {

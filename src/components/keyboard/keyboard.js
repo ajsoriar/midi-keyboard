@@ -151,7 +151,7 @@ class MidiKeyboard extends HTMLElement {
         return note + octave;
     }
 
-    getMidiFromNoteName(noteName) {
+    getMidiFromNoteName(noteName, skipRangeCheck) {
         if (typeof noteName !== "string") {
             return null;
         }
@@ -161,7 +161,9 @@ class MidiKeyboard extends HTMLElement {
             return null;
         }
 
-        var match = value.match(/^([A-Za-z#]+)(-?\d+)$/);
+        value = value.replace("♯", "#").replace("♭", "b");
+
+        var match = value.match(/^([A-Za-z#b]+)(-?\d+)$/);
         if (!match) {
             return null;
         }
@@ -171,28 +173,42 @@ class MidiKeyboard extends HTMLElement {
         var noteToPitchClass = {
             do: 0,
             "do#": 1,
+            dob: 11,
             re: 2,
             "re#": 3,
+            reb: 1,
             mi: 4,
+            mib: 3,
             fa: 5,
             "fa#": 6,
+            fab: 4,
             sol: 7,
             "sol#": 8,
+            solb: 6,
             la: 9,
             "la#": 10,
+            lab: 8,
             si: 11,
+            sib: 10,
             c: 0,
             "c#": 1,
+            cb: 11,
             d: 2,
             "d#": 3,
+            db: 1,
             e: 4,
+            eb: 3,
             f: 5,
             "f#": 6,
+            fb: 4,
             g: 7,
             "g#": 8,
+            gb: 6,
             a: 9,
             "a#": 10,
-            b: 11
+            ab: 8,
+            b: 11,
+            bb: 10
         };
         var pitchClass = noteToPitchClass[rawName];
 
@@ -201,7 +217,7 @@ class MidiKeyboard extends HTMLElement {
         }
 
         var midiNote = (octave + 1) * 12 + pitchClass;
-        if (midiNote < this.minMidiNote || midiNote > this.maxMidiNote) {
+        if (!skipRangeCheck && (midiNote < this.minMidiNote || midiNote > this.maxMidiNote)) {
             return null;
         }
 
@@ -370,6 +386,14 @@ class MidiKeyboard extends HTMLElement {
         };
     }
 
+    isValidMidiRange(startMidiNote, endMidiNote) {
+        return Number.isInteger(startMidiNote) &&
+            Number.isInteger(endMidiNote) &&
+            startMidiNote >= this.minMidiNote &&
+            endMidiNote <= this.maxMidiNote &&
+            startMidiNote < endMidiNote;
+    }
+
     getKeyboardHtml(startMidiNote, endMidiNote) {
         var str = "";
         var cont = 0;
@@ -402,7 +426,7 @@ class MidiKeyboard extends HTMLElement {
         this.paintKeyboard(this.minMidiNote, this.maxMidiNote);
     }
 
-    init(startOctave, endOctave) {
+    initOctave(startOctave, endOctave) {
         if (startOctave === undefined && endOctave === undefined) {
             this.paintFullKeyboard();
             return;
@@ -415,13 +439,40 @@ class MidiKeyboard extends HTMLElement {
             startOctave < -1 ||
             endOctave > 9
         ) {
-            console.error("Piano.init(startOctave, endOctave) necesita octavas enteras entre -1 y 9, y startOctave debe ser menor que endOctave. Pintando piano completo.");
+            console.error("Piano.initOctave(startOctave, endOctave) necesita octavas enteras entre -1 y 9, y startOctave debe ser menor que endOctave. Pintando piano completo.");
             this.paintFullKeyboard();
             return;
         }
 
         var range = this.getMidiRangeFromOctaves(startOctave, endOctave);
-        this.paintKeyboard(range.startMidiNote, range.endMidiNote);
+        this.initMidi(range.startMidiNote, range.endMidiNote);
+    }
+
+    initMidi(startMidiNote, endMidiNote) {
+        if (!this.isValidMidiRange(startMidiNote, endMidiNote)) {
+            console.error("Piano.initMidi(startMidiNote, endMidiNote) necesita notas MIDI enteras entre 0 y 127, y startMidiNote debe ser menor que endMidiNote. Pintando piano completo.");
+            this.paintFullKeyboard();
+            return;
+        }
+
+        this.paintKeyboard(startMidiNote, endMidiNote);
+    }
+
+    initRange(startNoteName, endNoteName) {
+        var startMidiNote = this.getMidiFromNoteName(startNoteName, true);
+        var endMidiNote = this.getMidiFromNoteName(endNoteName, true);
+
+        if (startMidiNote === null || endMidiNote === null) {
+            console.error("Piano.initRange(startNoteName, endNoteName) necesita notas validas, por ejemplo \"A0\" y \"C8\". Pintando piano completo.");
+            this.paintFullKeyboard();
+            return;
+        }
+
+        this.initMidi(startMidiNote, endMidiNote);
+    }
+
+    init(startOctave, endOctave) {
+        this.initOctave(startOctave, endOctave);
     }
 
     clear() {
@@ -469,14 +520,38 @@ window.Piano = {
         return [];
     },
 
-    init: function (startOctave, endOctave) {
+    initOctave: function (startOctave, endOctave) {
         var piano = this.getElement();
         if (!piano) {
             console.error("No se encontro ningun elemento <midi-keyboard>.");
             return;
         }
 
-        piano.init(startOctave, endOctave);
+        piano.initOctave(startOctave, endOctave);
+    },
+
+    initMidi: function (startMidiNote, endMidiNote) {
+        var piano = this.getElement();
+        if (!piano) {
+            console.error("No se encontro ningun elemento <midi-keyboard>.");
+            return;
+        }
+
+        piano.initMidi(startMidiNote, endMidiNote);
+    },
+
+    initRange: function (startNoteName, endNoteName) {
+        var piano = this.getElement();
+        if (!piano) {
+            console.error("No se encontro ningun elemento <midi-keyboard>.");
+            return;
+        }
+
+        piano.initRange(startNoteName, endNoteName);
+    },
+
+    init: function (startOctave, endOctave) {
+        this.initOctave(startOctave, endOctave);
     },
 
     clear: function () {
