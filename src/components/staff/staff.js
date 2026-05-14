@@ -1,4 +1,4 @@
-class MusicStaff extends HTMLElement {
+class StaffComponent extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: "open" });
@@ -12,8 +12,13 @@ class MusicStaff extends HTMLElement {
         this.minMidiNote = 0;
         this.maxMidiNote = 127;
         this.middleCMidiNote = 60;
+        this.lineSpacing = 10;
+        this.guideLineCount = 4;
+        this.noteSpacing = 25;
+        this.leftPadding = 50;
 
         this.onMIDIMessage = this.onMIDIMessage.bind(this);
+        this.onNoteClick = this.onNoteClick.bind(this);
     }
 
     connectedCallback() {
@@ -38,36 +43,51 @@ class MusicStaff extends HTMLElement {
                 #staffContainer {
                     position: relative;
                     margin: 20px 0;
+                    overflow-x: auto;
                 }
 
                 .staff {
                     position: relative;
                     width: 100%;
-                    height: 100px;
                     margin-bottom: 20px;
                 }
 
                 .staffLine {
                     position: absolute;
+                    left: 0;
                     width: 100%;
                     height: 1px;
+                }
+
+                .staffLine.main {
                     background-color: #000;
-                    left: 0;
+                }
+
+                .staffLine.guide {
+                    background-color: #808080;
                 }
 
                 .clef {
                     position: absolute;
                     left: 10px;
-                    top: 5px;
-                    font-size: 80px;
+                    font-size: 56px;
                     line-height: 1;
+                    z-index: 1;
+                }
+
+                .octaveLabel {
+                    position: absolute;
+                    left: 50px;
+                    font-size: 12px;
+                    font-weight: bold;
                 }
 
                 .noteContainer {
-                    position: relative;
+                    position: absolute;
+                    left: 0;
+                    top: 0;
                     width: 100%;
-                    height: 100px;
-                    top: -100px;
+                    height: 100%;
                 }
 
                 .note {
@@ -82,20 +102,13 @@ class MusicStaff extends HTMLElement {
                     justify-content: center;
                     font-size: 8px;
                     color: #fff;
+                    z-index: 2;
                 }
 
                 .note.active {
                     background-color: #00ff00;
                     color: #000;
                     box-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
-                }
-
-                .octaveLabel {
-                    position: absolute;
-                    left: 50px;
-                    font-size: 12px;
-                    font-weight: bold;
-                    top: -20px;
                 }
             </style>
 
@@ -116,91 +129,104 @@ class MusicStaff extends HTMLElement {
         return note + octave;
     }
 
-    getMidiNoteFromName(noteName, octave) {
-        var noteIndex = this.arrayOfNotes.indexOf(noteName);
-        if (noteIndex === -1) {
-            return -1;
-        }
-        return (octave + 1) * 12 + noteIndex;
+    getStaffTop() {
+        return this.guideLineCount * this.lineSpacing;
+    }
+
+    getStaffBottom() {
+        return this.getStaffTop() + (this.lineSpacing * 4);
+    }
+
+    getStaffHeight() {
+        return ((this.guideLineCount * 2) + 4) * this.lineSpacing + 24;
+    }
+
+    getStaffWidth() {
+        return this.leftPadding + ((this.maxMidiNote - this.minMidiNote + 1) * this.noteSpacing) + 24;
     }
 
     getPositionForNote(midiNote) {
-        // Treble clef: middle C (60) is on the middle line (position 50%)
-        // Each semitone is approximately 2.5 pixels in height
-        var middleC = 60;
-        var pixelsPerSemitone = 2.5;
-        var middlePosition = 50; // percentage
+        var pixelsPerSemitone = this.lineSpacing / 4;
+        var middlePosition = this.getStaffTop() + (this.lineSpacing * 2);
+        var semitoneOffset = midiNote - this.middleCMidiNote;
+        var position = middlePosition - (semitoneOffset * pixelsPerSemitone);
 
-        var semitoneOffset = midiNote - middleC;
-        var pixelOffset = semitoneOffset * pixelsPerSemitone;
+        return Math.max(0, Math.min(this.getStaffHeight() - 20, position));
+    }
 
-        // Convert pixels to percentage (staff is 100px tall)
-        var percentOffset = (pixelOffset / 100) * 100;
-        var position = middlePosition - percentOffset; // Invert because higher notes go up
+    appendStaffLine(staffDiv, top, type) {
+        var lineDiv = document.createElement("div");
+        lineDiv.className = "staffLine " + type;
+        lineDiv.style.top = top + "px";
+        staffDiv.appendChild(lineDiv);
+    }
 
-        return Math.max(0, Math.min(100, position));
+    appendNotes(noteContainer) {
+        var left = this.leftPadding;
+
+        for (var midiNote = this.minMidiNote; midiNote <= this.maxMidiNote; midiNote++) {
+            var noteName = this.arrayOfNotes[midiNote % 12];
+            var noteDiv = document.createElement("div");
+            noteDiv.className = "note";
+            noteDiv.id = "note" + midiNote;
+            noteDiv.dataset.note = midiNote;
+            noteDiv.innerHTML = noteName.replace("#", "&#9839;");
+            noteDiv.style.top = this.getPositionForNote(midiNote) + "px";
+            noteDiv.style.left = left + "px";
+            left += this.noteSpacing;
+
+            if (this.currentMidiNotes.includes(midiNote)) {
+                noteDiv.classList.add("active");
+            }
+
+            noteDiv.addEventListener("click", this.onNoteClick);
+            noteContainer.appendChild(noteDiv);
+        }
     }
 
     drawStaff() {
         var container = this.shadowRoot.getElementById("staffContainer");
         container.innerHTML = "";
 
-        for (var octave = this.startOctave; octave <= this.endOctave; octave++) {
-            var staffDiv = document.createElement("div");
-            staffDiv.className = "staff";
+        var staffDiv = document.createElement("div");
+        staffDiv.className = "staff";
+        staffDiv.style.height = this.getStaffHeight() + "px";
+        staffDiv.style.minWidth = this.getStaffWidth() + "px";
 
-            // Draw 5 staff lines
-            for (var line = 0; line < 5; line++) {
-                var lineDiv = document.createElement("div");
-                lineDiv.className = "staffLine";
-                lineDiv.style.top = (line * 25) + "px";
-                staffDiv.appendChild(lineDiv);
-            }
-
-            // Add clef (treble clef symbol)
-            if (octave === this.startOctave) {
-                var clefDiv = document.createElement("div");
-                clefDiv.className = "clef";
-                clefDiv.innerHTML = "𝄞"; // Treble clef Unicode symbol
-                staffDiv.appendChild(clefDiv);
-            }
-
-            // Add octave label
-            var labelDiv = document.createElement("div");
-            labelDiv.className = "octaveLabel";
-            labelDiv.innerHTML = "Oct " + octave;
-            staffDiv.appendChild(labelDiv);
-
-            // Add notes for this octave
-            var noteContainer = document.createElement("div");
-            noteContainer.className = "noteContainer";
-
-            for (var noteIndex = 0; noteIndex < 12; noteIndex++) {
-                var midiNote = octave * 12 + noteIndex;
-
-                if (midiNote < this.minMidiNote || midiNote > this.maxMidiNote) {
-                    continue;
-                }
-
-                var noteName = this.arrayOfNotes[noteIndex];
-                var noteDiv = document.createElement("div");
-                noteDiv.className = "note";
-                noteDiv.id = "note" + midiNote;
-                noteDiv.innerHTML = noteName.replace("#", "♯");
-                noteDiv.style.top = this.getPositionForNote(midiNote) + "%";
-                noteDiv.style.left = (50 + (noteIndex * 25)) + "px";
-
-                if (this.currentMidiNotes.includes(midiNote)) {
-                    noteDiv.classList.add("active");
-                }
-
-                noteDiv.addEventListener("click", () => this.addNote(midiNote));
-                noteContainer.appendChild(noteDiv);
-            }
-
-            staffDiv.appendChild(noteContainer);
-            container.appendChild(staffDiv);
+        for (var guideTop = 1; guideTop <= this.guideLineCount; guideTop++) {
+            this.appendStaffLine(staffDiv, this.getStaffTop() - (guideTop * this.lineSpacing), "guide");
         }
+
+        for (var line = 0; line < 5; line++) {
+            this.appendStaffLine(staffDiv, this.getStaffTop() + (line * this.lineSpacing), "main");
+        }
+
+        for (var guideBottom = 1; guideBottom <= this.guideLineCount; guideBottom++) {
+            this.appendStaffLine(staffDiv, this.getStaffBottom() + (guideBottom * this.lineSpacing), "guide");
+        }
+
+        var clefDiv = document.createElement("div");
+        clefDiv.className = "clef";
+        clefDiv.innerHTML = "&#119070;";
+        clefDiv.style.top = (this.getStaffTop() - this.lineSpacing) + "px";
+        staffDiv.appendChild(clefDiv);
+
+        var labelDiv = document.createElement("div");
+        labelDiv.className = "octaveLabel";
+        labelDiv.innerHTML = "Oct " + this.startOctave + " - " + this.endOctave;
+        labelDiv.style.top = (this.getStaffBottom() + this.lineSpacing + 2) + "px";
+        staffDiv.appendChild(labelDiv);
+
+        var noteContainer = document.createElement("div");
+        noteContainer.className = "noteContainer";
+        this.appendNotes(noteContainer);
+        staffDiv.appendChild(noteContainer);
+
+        container.appendChild(staffDiv);
+    }
+
+    onNoteClick(event) {
+        this.addNote(Number(event.currentTarget.dataset.note));
     }
 
     addNote(midiNote) {
@@ -232,7 +258,7 @@ class MusicStaff extends HTMLElement {
     }
 
     updateStatus() {
-        var notes = this.currentMidiNotes.map(n => this.getAmericanNoteFromMidiNote(n)).join(", ");
+        var notes = this.currentMidiNotes.map((note) => this.getAmericanNoteFromMidiNote(note)).join(", ");
         this.shadowRoot.getElementById("currentMidiNotes").innerHTML = notes || "No notes";
     }
 
@@ -248,8 +274,6 @@ class MusicStaff extends HTMLElement {
 
             var note = message.data[1];
             var velocity = message.data[2] / 127;
-            var time = message.timeStamp;
-            var channel = message.data[0] & 0xf;
 
             console.log("Staff -> note: " + note + " (" + this.getAmericanNoteFromMidiNote(note) + ")");
             console.log("velocity: " + velocity);
@@ -274,20 +298,25 @@ class MusicStaff extends HTMLElement {
         }
     }
 
-    init(startOctave, endOctave) {
+    init(startOctave, endOctave, lineSpacing) {
         if (startOctave === undefined) {
             startOctave = 0;
         }
         if (endOctave === undefined) {
             endOctave = 8;
         }
+        if (lineSpacing === undefined) {
+            lineSpacing = 10;
+        }
 
-        if (typeof startOctave !== "number" || typeof endOctave !== "number") {
-            console.error("Staff.init(startOctave, endOctave) requires integer octaves between -1 and 9, and startOctave must be less than endOctave. Painting full staff.");
-            this.startOctave = -1;
-            this.endOctave = 9;
-        } else if (startOctave >= endOctave || startOctave < -1 || endOctave > 9) {
-            console.error("Staff.init(startOctave, endOctave) requires integer octaves between -1 and 9, and startOctave must be less than endOctave. Painting full staff.");
+        if (
+            !Number.isInteger(startOctave) ||
+            !Number.isInteger(endOctave) ||
+            startOctave >= endOctave ||
+            startOctave < -1 ||
+            endOctave > 9
+        ) {
+            console.error("Staff.init(startOctave, endOctave, lineSpacing) requires integer octaves between -1 and 9, and startOctave must be less than endOctave. Painting full staff.");
             this.startOctave = -1;
             this.endOctave = 9;
         } else {
@@ -295,11 +324,15 @@ class MusicStaff extends HTMLElement {
             this.endOctave = endOctave;
         }
 
-        var minMidiNote = this.startOctave * 12;
-        var maxMidiNote = (this.endOctave + 1) * 12 - 1;
+        if (typeof lineSpacing !== "number" || lineSpacing <= 0) {
+            console.error("Staff.init(startOctave, endOctave, lineSpacing) requires lineSpacing to be a positive number. Using 10px.");
+            this.lineSpacing = 10;
+        } else {
+            this.lineSpacing = lineSpacing;
+        }
 
-        this.minMidiNote = Math.max(0, minMidiNote);
-        this.maxMidiNote = Math.min(127, maxMidiNote);
+        this.minMidiNote = Math.max(0, (this.startOctave + 1) * 12);
+        this.maxMidiNote = Math.min(127, (this.endOctave + 1) * 12 + 11);
 
         this.drawStaff();
     }
@@ -311,21 +344,21 @@ class MusicStaff extends HTMLElement {
     }
 }
 
-customElements.define("music-staff", MusicStaff);
+customElements.define("music-staff", StaffComponent);
 
 window.Staff = {
     getElement: function () {
         return document.querySelector("music-staff");
     },
 
-    init: function (startOctave, endOctave) {
+    init: function (startOctave, endOctave, lineSpacing) {
         var staff = this.getElement();
         if (!staff) {
             console.error("No <music-staff> element found.");
             return;
         }
 
-        staff.init(startOctave, endOctave);
+        staff.init(startOctave, endOctave, lineSpacing);
     },
 
     clear: function () {
