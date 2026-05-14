@@ -151,6 +151,95 @@ class MidiKeyboard extends HTMLElement {
         return note + octave;
     }
 
+    getMidiFromNoteName(noteName) {
+        if (typeof noteName !== "string") {
+            return null;
+        }
+
+        var value = noteName.trim();
+        if (!value) {
+            return null;
+        }
+
+        var match = value.match(/^([A-Za-z#]+)(-?\d+)$/);
+        if (!match) {
+            return null;
+        }
+
+        var rawName = match[1].toLowerCase();
+        var octave = Number(match[2]);
+        var noteToPitchClass = {
+            do: 0,
+            "do#": 1,
+            re: 2,
+            "re#": 3,
+            mi: 4,
+            fa: 5,
+            "fa#": 6,
+            sol: 7,
+            "sol#": 8,
+            la: 9,
+            "la#": 10,
+            si: 11,
+            c: 0,
+            "c#": 1,
+            d: 2,
+            "d#": 3,
+            e: 4,
+            f: 5,
+            "f#": 6,
+            g: 7,
+            "g#": 8,
+            a: 9,
+            "a#": 10,
+            b: 11
+        };
+        var pitchClass = noteToPitchClass[rawName];
+
+        if (pitchClass === undefined || !Number.isInteger(octave)) {
+            return null;
+        }
+
+        var midiNote = (octave + 1) * 12 + pitchClass;
+        if (midiNote < this.minMidiNote || midiNote > this.maxMidiNote) {
+            return null;
+        }
+
+        return midiNote;
+    }
+
+    highlightNotes(noteNames) {
+        if (!Array.isArray(noteNames)) {
+            return;
+        }
+
+        for (var i = 0; i < noteNames.length; i++) {
+            var midiNote = this.getMidiFromNoteName(noteNames[i]);
+            if (midiNote === null) {
+                console.error("Piano.highlight: nota invalida -> " + noteNames[i]);
+                continue;
+            }
+
+            this.addNote(midiNote);
+        }
+    }
+
+    unhighlightNotes(noteNames) {
+        if (!Array.isArray(noteNames)) {
+            return;
+        }
+
+        for (var i = 0; i < noteNames.length; i++) {
+            var midiNote = this.getMidiFromNoteName(noteNames[i]);
+            if (midiNote === null) {
+                console.error("Piano.unhighlight: nota invalida -> " + noteNames[i]);
+                continue;
+            }
+
+            this.removeNote(midiNote);
+        }
+    }
+
     addNote(note) {
         if (this.currentMidiNotes.includes(note)) {
             return;
@@ -356,6 +445,22 @@ window.Piano = {
         return document.querySelector("midi-keyboard");
     },
 
+    normalizeNotes: function (notes) {
+        if (Array.isArray(notes)) {
+            return notes;
+        }
+
+        if (typeof notes === "string") {
+            return notes.split(",").map(function (note) {
+                return note.trim();
+            }).filter(function (note) {
+                return note.length > 0;
+            });
+        }
+
+        return [];
+    },
+
     init: function (startOctave, endOctave) {
         var piano = this.getElement();
         if (!piano) {
@@ -374,5 +479,25 @@ window.Piano = {
         }
 
         piano.clear();
+    },
+
+    highlight: function (notes) {
+        var piano = this.getElement();
+        if (!piano) {
+            console.error("No se encontro ningun elemento <midi-keyboard>.");
+            return;
+        }
+
+        piano.highlightNotes(this.normalizeNotes(notes));
+    },
+
+    unhighlight: function (notes) {
+        var piano = this.getElement();
+        if (!piano) {
+            console.error("No se encontro ningun elemento <midi-keyboard>.");
+            return;
+        }
+
+        piano.unhighlightNotes(this.normalizeNotes(notes));
     }
 };

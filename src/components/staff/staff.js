@@ -16,6 +16,9 @@ class StaffComponent extends HTMLElement {
         this.guideLineCount = 4;
         this.noteSpacing = 25;
         this.leftPadding = 50;
+        this.noteSize = 20;
+        this.verticalPadding = 20;
+        this.staffOffset = 0;
 
         this.onMIDIMessage = this.onMIDIMessage.bind(this);
         this.onNoteClick = this.onNoteClick.bind(this);
@@ -95,14 +98,28 @@ class StaffComponent extends HTMLElement {
                     width: 20px;
                     height: 20px;
                     border-radius: 50%;
-                    background-color: #000;
+                    background-color: #fff;
+                    border: 1px solid #fff;
+                    box-sizing: border-box;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     font-size: 8px;
-                    color: #fff;
+                    color: #000;
                     z-index: 2;
+                }
+
+                .note.accidental {
+                    background-color: #000;
+                    border-color: #000;
+                    color: #fff;
+                }
+
+                .note.middleC {
+                    background-color: yellow;
+                    border-color: yellow;
+                    color: #000;
                 }
 
                 .note.active {
@@ -129,8 +146,97 @@ class StaffComponent extends HTMLElement {
         return note + octave;
     }
 
+    getMidiFromNoteName(noteName) {
+        if (typeof noteName !== "string") {
+            return null;
+        }
+
+        var value = noteName.trim();
+        if (!value) {
+            return null;
+        }
+
+        var match = value.match(/^([A-Za-z#]+)(-?\d+)$/);
+        if (!match) {
+            return null;
+        }
+
+        var rawName = match[1].toLowerCase();
+        var octave = Number(match[2]);
+        var noteToPitchClass = {
+            do: 0,
+            "do#": 1,
+            re: 2,
+            "re#": 3,
+            mi: 4,
+            fa: 5,
+            "fa#": 6,
+            sol: 7,
+            "sol#": 8,
+            la: 9,
+            "la#": 10,
+            si: 11,
+            c: 0,
+            "c#": 1,
+            d: 2,
+            "d#": 3,
+            e: 4,
+            f: 5,
+            "f#": 6,
+            g: 7,
+            "g#": 8,
+            a: 9,
+            "a#": 10,
+            b: 11
+        };
+        var pitchClass = noteToPitchClass[rawName];
+
+        if (pitchClass === undefined || !Number.isInteger(octave)) {
+            return null;
+        }
+
+        var midiNote = (octave + 1) * 12 + pitchClass;
+        if (midiNote < this.minMidiNote || midiNote > this.maxMidiNote) {
+            return null;
+        }
+
+        return midiNote;
+    }
+
+    highlightNotes(noteNames) {
+        if (!Array.isArray(noteNames)) {
+            return;
+        }
+
+        for (var i = 0; i < noteNames.length; i++) {
+            var midiNote = this.getMidiFromNoteName(noteNames[i]);
+            if (midiNote === null) {
+                console.error("Staff.highlight: nota invalida -> " + noteNames[i]);
+                continue;
+            }
+
+            this.addNote(midiNote);
+        }
+    }
+
+    unhighlightNotes(noteNames) {
+        if (!Array.isArray(noteNames)) {
+            return;
+        }
+
+        for (var i = 0; i < noteNames.length; i++) {
+            var midiNote = this.getMidiFromNoteName(noteNames[i]);
+            if (midiNote === null) {
+                console.error("Staff.unhighlight: nota invalida -> " + noteNames[i]);
+                continue;
+            }
+
+            this.removeNote(midiNote);
+        }
+    }
+
     getStaffTop() {
-        return this.guideLineCount * this.lineSpacing;
+        return this.staffOffset + this.guideLineCount * this.lineSpacing;
     }
 
     getStaffBottom() {
@@ -138,20 +244,40 @@ class StaffComponent extends HTMLElement {
     }
 
     getStaffHeight() {
-        return ((this.guideLineCount * 2) + 4) * this.lineSpacing + 24;
+        var lowestNotePosition = this.staffOffset + this.getRawPositionForNote(this.minMidiNote);
+        var guideBottom = this.getStaffBottom() + (this.guideLineCount * this.lineSpacing);
+        var contentBottom = Math.max(lowestNotePosition + (this.noteSize / 2), guideBottom);
+
+        return contentBottom + this.verticalPadding;
     }
 
     getStaffWidth() {
         return this.leftPadding + ((this.maxMidiNote - this.minMidiNote + 1) * this.noteSpacing) + 24;
     }
 
-    getPositionForNote(midiNote) {
-        var pixelsPerSemitone = this.lineSpacing / 4;
-        var middlePosition = this.getStaffTop() + (this.lineSpacing * 2);
-        var semitoneOffset = midiNote - this.middleCMidiNote;
-        var position = middlePosition - (semitoneOffset * pixelsPerSemitone);
+    getDiatonicStepFromMidiNote(midiNote) {
+        var pitchClass = midiNote % 12;
+        var octave = Math.floor(midiNote / 12) - 1;
+        var naturalStepByPitchClass = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
 
-        return Math.max(0, Math.min(this.getStaffHeight() - 20, position));
+        return (octave * 7) + naturalStepByPitchClass[pitchClass];
+    }
+
+    getRawPositionForNote(midiNote) {
+        var pixelsPerDiatonicStep = this.lineSpacing / 2;
+        var middlePosition = this.guideLineCount * this.lineSpacing + (this.lineSpacing * 5);
+        var stepOffset = this.getDiatonicStepFromMidiNote(midiNote) - this.getDiatonicStepFromMidiNote(this.middleCMidiNote);
+
+        return middlePosition - (stepOffset * pixelsPerDiatonicStep);
+    }
+
+    updateStaffOffset() {
+        var topMostPosition = this.getRawPositionForNote(this.maxMidiNote);
+        this.staffOffset = Math.max(0, this.verticalPadding - topMostPosition);
+    }
+
+    getPositionForNote(midiNote) {
+        return this.staffOffset + this.getRawPositionForNote(midiNote);
     }
 
     appendStaffLine(staffDiv, top, type) {
@@ -168,10 +294,16 @@ class StaffComponent extends HTMLElement {
             var noteName = this.arrayOfNotes[midiNote % 12];
             var noteDiv = document.createElement("div");
             noteDiv.className = "note";
+            if (noteName.indexOf("#") > -1) {
+                noteDiv.classList.add("accidental");
+            }
+            if (midiNote === this.middleCMidiNote) {
+                noteDiv.classList.add("middleC");
+            }
             noteDiv.id = "note" + midiNote;
             noteDiv.dataset.note = midiNote;
             noteDiv.innerHTML = noteName.replace("#", "&#9839;");
-            noteDiv.style.top = this.getPositionForNote(midiNote) + "px";
+            noteDiv.style.top = (this.getPositionForNote(midiNote) - (this.noteSize / 2)) + "px";
             noteDiv.style.left = left + "px";
             left += this.noteSpacing;
 
@@ -187,6 +319,7 @@ class StaffComponent extends HTMLElement {
     drawStaff() {
         var container = this.shadowRoot.getElementById("staffContainer");
         container.innerHTML = "";
+        this.updateStaffOffset();
 
         var staffDiv = document.createElement("div");
         staffDiv.className = "staff";
@@ -351,6 +484,22 @@ window.Staff = {
         return document.querySelector("music-staff");
     },
 
+    normalizeNotes: function (notes) {
+        if (Array.isArray(notes)) {
+            return notes;
+        }
+
+        if (typeof notes === "string") {
+            return notes.split(",").map(function (note) {
+                return note.trim();
+            }).filter(function (note) {
+                return note.length > 0;
+            });
+        }
+
+        return [];
+    },
+
     init: function (startOctave, endOctave, lineSpacing) {
         var staff = this.getElement();
         if (!staff) {
@@ -369,5 +518,25 @@ window.Staff = {
         }
 
         staff.clear();
+    },
+
+    highlight: function (notes) {
+        var staff = this.getElement();
+        if (!staff) {
+            console.error("No <music-staff> element found.");
+            return;
+        }
+
+        staff.highlightNotes(this.normalizeNotes(notes));
+    },
+
+    unhighlight: function (notes) {
+        var staff = this.getElement();
+        if (!staff) {
+            console.error("No <music-staff> element found.");
+            return;
+        }
+
+        staff.unhighlightNotes(this.normalizeNotes(notes));
     }
 };
