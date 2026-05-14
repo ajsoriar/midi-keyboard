@@ -18,7 +18,6 @@ class MidiKeyboard extends HTMLElement {
 
     connectedCallback() {
         this.render();
-        this.init();
         this.bindKeyboardClicks();
         this.setupMIDI();
     }
