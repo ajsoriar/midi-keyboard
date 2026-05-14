@@ -12,6 +12,7 @@ class StaffComponent extends HTMLElement {
         this.minMidiNote = 0;
         this.maxMidiNote = 127;
         this.middleCMidiNote = 60;
+        this.clef = "SOL";
         this.lineSpacing = 10;
         this.guideLineCount = 4;
         this.noteSpacing = 25;
@@ -22,6 +23,31 @@ class StaffComponent extends HTMLElement {
 
         this.onMIDIMessage = this.onMIDIMessage.bind(this);
         this.onNoteClick = this.onNoteClick.bind(this);
+    }
+
+    getClefConfig() {
+        var clefs = {
+            SOL: {
+                symbol: "&#119070;",
+                anchorMidiNote: 67,
+                anchorLineIndex: 3,
+                topOffset: -1
+            },
+            FA: {
+                symbol: "&#119074;",
+                anchorMidiNote: 53,
+                anchorLineIndex: 1,
+                topOffset: -0.5
+            },
+            DO: {
+                symbol: "&#119073;",
+                anchorMidiNote: 60,
+                anchorLineIndex: 2,
+                topOffset: 0
+            }
+        };
+
+        return clefs[this.clef] || clefs.SOL;
     }
 
     connectedCallback() {
@@ -272,11 +298,12 @@ class StaffComponent extends HTMLElement {
     }
 
     getRawPositionForNote(midiNote) {
+        var clefConfig = this.getClefConfig();
         var pixelsPerDiatonicStep = this.lineSpacing / 2;
-        var middlePosition = this.guideLineCount * this.lineSpacing + (this.lineSpacing * 5);
-        var stepOffset = this.getDiatonicStepFromMidiNote(midiNote) - this.getDiatonicStepFromMidiNote(this.middleCMidiNote);
+        var anchorPosition = this.guideLineCount * this.lineSpacing + (clefConfig.anchorLineIndex * this.lineSpacing);
+        var stepOffset = this.getDiatonicStepFromMidiNote(midiNote) - this.getDiatonicStepFromMidiNote(clefConfig.anchorMidiNote);
 
-        return middlePosition - (stepOffset * pixelsPerDiatonicStep);
+        return anchorPosition - (stepOffset * pixelsPerDiatonicStep);
     }
 
     updateStaffOffset() {
@@ -347,14 +374,15 @@ class StaffComponent extends HTMLElement {
         }
 
         var clefDiv = document.createElement("div");
+        var clefConfig = this.getClefConfig();
         clefDiv.className = "clef";
-        clefDiv.innerHTML = "&#119070;";
-        clefDiv.style.top = (this.getStaffTop() - this.lineSpacing) + "px";
+        clefDiv.innerHTML = clefConfig.symbol;
+        clefDiv.style.top = (this.getStaffTop() + (clefConfig.topOffset * this.lineSpacing)) + "px";
         staffDiv.appendChild(clefDiv);
 
         var labelDiv = document.createElement("div");
         labelDiv.className = "octaveLabel";
-        labelDiv.innerHTML = "Oct " + this.startOctave + " - " + this.endOctave;
+        labelDiv.innerHTML = this.clef + " Oct " + this.startOctave + " - " + this.endOctave;
         labelDiv.style.top = (this.getStaffBottom() + this.lineSpacing + 2) + "px";
         staffDiv.appendChild(labelDiv);
 
@@ -439,12 +467,36 @@ class StaffComponent extends HTMLElement {
         }
     }
 
-    init(startOctave, endOctave, lineSpacing) {
+    normalizeClef(clef) {
+        if (clef === undefined) {
+            return "SOL";
+        }
+
+        if (typeof clef !== "string") {
+            console.error("Staff.init(startOctave, endOctave, lineSpacing, clef) requires clef to be \"SOL\", \"FA\", or \"DO\". Using SOL.");
+            return "SOL";
+        }
+
+        var normalizedClef = clef.toUpperCase();
+
+        if (normalizedClef !== "SOL" && normalizedClef !== "FA" && normalizedClef !== "DO") {
+            console.error("Staff.init(startOctave, endOctave, lineSpacing, clef) requires clef to be \"SOL\", \"FA\", or \"DO\". Using SOL.");
+            return "SOL";
+        }
+
+        return normalizedClef;
+    }
+
+    init(startOctave, endOctave, lineSpacing, clef) {
         if (startOctave === undefined) {
             startOctave = 0;
         }
         if (endOctave === undefined) {
             endOctave = 8;
+        }
+        if (typeof lineSpacing === "string" && clef === undefined) {
+            clef = lineSpacing;
+            lineSpacing = 10;
         }
         if (lineSpacing === undefined) {
             lineSpacing = 10;
@@ -457,7 +509,7 @@ class StaffComponent extends HTMLElement {
             startOctave < -1 ||
             endOctave > 9
         ) {
-            console.error("Staff.init(startOctave, endOctave, lineSpacing) requires integer octaves between -1 and 9, and startOctave must be less than endOctave. Painting full staff.");
+            console.error("Staff.init(startOctave, endOctave, lineSpacing, clef) requires integer octaves between -1 and 9, and startOctave must be less than endOctave. Painting full staff.");
             this.startOctave = -1;
             this.endOctave = 9;
         } else {
@@ -466,11 +518,13 @@ class StaffComponent extends HTMLElement {
         }
 
         if (typeof lineSpacing !== "number" || lineSpacing <= 0) {
-            console.error("Staff.init(startOctave, endOctave, lineSpacing) requires lineSpacing to be a positive number. Using 10px.");
+            console.error("Staff.init(startOctave, endOctave, lineSpacing, clef) requires lineSpacing to be a positive number. Using 10px.");
             this.lineSpacing = 10;
         } else {
             this.lineSpacing = lineSpacing;
         }
+
+        this.clef = this.normalizeClef(clef);
 
         this.minMidiNote = Math.max(0, (this.startOctave + 1) * 12);
         this.maxMidiNote = Math.min(127, (this.endOctave + 1) * 12 + 11);
@@ -488,9 +542,7 @@ class StaffComponent extends HTMLElement {
 customElements.define("music-staff", StaffComponent);
 
 window.Staff = {
-    getElement: function () {
-        return document.querySelector("music-staff");
-    },
+    staffs: {},
 
     normalizeNotes: function (notes) {
         if (Array.isArray(notes)) {
@@ -508,43 +560,56 @@ window.Staff = {
         return [];
     },
 
-    init: function (startOctave, endOctave, lineSpacing) {
-        var staff = this.getElement();
-        if (!staff) {
-            console.error("No <music-staff> element found.");
+    init: function (startOctave, endOctave, lineSpacing, clef) {
+        var clefType = clef || "SOL";
+        var elementId = "music-staff-" + clefType;
+        var container = document.getElementById("staffs-container");
+
+        if (!container) {
+            console.error("No #staffs-container found in DOM.");
             return;
         }
 
-        staff.init(startOctave, endOctave, lineSpacing);
+        var staff = document.getElementById(elementId);
+        if (!staff) {
+            staff = document.createElement("music-staff");
+            staff.id = elementId;
+            container.appendChild(staff);
+        }
+
+        this.staffs[clefType] = staff;
+        staff.init(startOctave, endOctave, lineSpacing, clefType);
     },
 
     clear: function () {
-        var staff = this.getElement();
-        if (!staff) {
-            console.error("No <music-staff> element found.");
-            return;
-        }
-
-        staff.clear();
+        var self = this;
+        Object.keys(this.staffs).forEach(function (clef) {
+            var staff = self.staffs[clef];
+            if (staff) {
+                staff.clear();
+            }
+        });
     },
 
     highlight: function (notes) {
-        var staff = this.getElement();
-        if (!staff) {
-            console.error("No <music-staff> element found.");
-            return;
-        }
-
-        staff.highlightNotes(this.normalizeNotes(notes));
+        var self = this;
+        var normalizedNotes = this.normalizeNotes(notes);
+        Object.keys(this.staffs).forEach(function (clef) {
+            var staff = self.staffs[clef];
+            if (staff) {
+                staff.highlightNotes(normalizedNotes);
+            }
+        });
     },
 
     unhighlight: function (notes) {
-        var staff = this.getElement();
-        if (!staff) {
-            console.error("No <music-staff> element found.");
-            return;
-        }
-
-        staff.unhighlightNotes(this.normalizeNotes(notes));
+        var self = this;
+        var normalizedNotes = this.normalizeNotes(notes);
+        Object.keys(this.staffs).forEach(function (clef) {
+            var staff = self.staffs[clef];
+            if (staff) {
+                staff.unhighlightNotes(normalizedNotes);
+            }
+        });
     }
 };
