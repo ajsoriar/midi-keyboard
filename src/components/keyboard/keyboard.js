@@ -179,6 +179,17 @@ class MidiKeyboard extends HTMLElement {
         }));
     }
 
+    dispatchNotePressedEvent(noteNumber) {
+        this.dispatchEvent(new CustomEvent("piano-note-pressed", {
+            detail: {
+                midiNote: noteNumber,
+                note: this.getAmericanNoteFromMidiNote(noteNumber)
+            },
+            bubbles: true,
+            composed: true
+        }));
+    }
+
     getMidiFromNoteName(noteName, skipRangeCheck) {
         if (typeof noteName !== "string") {
             return null;
@@ -305,6 +316,8 @@ class MidiKeyboard extends HTMLElement {
         if (el) {
             el.classList.add("activeKey");
         }
+
+        this.dispatchNotePressedEvent(note);
     }
 
     removeNote(note) {

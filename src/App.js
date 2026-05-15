@@ -2,6 +2,7 @@ import "./components/keyboard/keyboard.js";
 import "./components/staff/staff.js";
 import "./components/grand-staff-steps/grand-staff-steps.js";
 import "./components/metronome/metronome.js";
+import "./components/speaker/speaker.js";
 
 document.addEventListener("piano-note-hover", (event) => {
     window.Staff.highlight(event.detail.note);
@@ -37,3 +38,4 @@ window.Staff.initRange("A0", "C4", "FA");
 
 window.GrandStaffSteps.init();
 window.Metronome.init(120);
+window.Speaker.init();
