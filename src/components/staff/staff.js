@@ -7,6 +7,7 @@ class StaffComponent extends HTMLElement {
         this.arrayOfNotes = ["Do", "Do#", "Re", "Re#", "Mi", "Fa", "Fa#", "Sol", "Sol#", "La", "La#", "Si"];
 
         this.currentMidiNotes = [];
+        this.hoverMidiNotes = [];
         this.startOctave = 0;
         this.endOctave = 8;
         this.minMidiNote = 0;
@@ -153,6 +154,20 @@ class StaffComponent extends HTMLElement {
                     color: #ffffff;
                     box-shadow: 0 0 8px rgba(0, 255, 255, 0.6);
                 }
+
+                .note.hover {
+                    background-color: #00ff00;
+                    border-color: #00ff00;
+                    color: #000;
+                    box-shadow: 0 0 8px rgba(0, 255, 0, 0.6);
+                }
+
+                .note.active.hover {
+                    background-color: #0000ff;
+                    border-color: #00ff00;
+                    color: #ffffff;
+                    box-shadow: 0 0 0 2px #00ff00, 0 0 8px rgba(0, 255, 255, 0.6);
+                }
             </style>
 
             <div id="currentMidiNotes" class="status"></div>
@@ -257,7 +272,7 @@ class StaffComponent extends HTMLElement {
                 continue;
             }
 
-            this.addNote(midiNote);
+            this.addHoverNote(midiNote);
         }
     }
 
@@ -267,9 +282,9 @@ class StaffComponent extends HTMLElement {
         }
 
         if (noteNames.length === 0) {
-            var allNotes = this.currentMidiNotes.slice();
+            var allNotes = this.hoverMidiNotes.slice();
             for (var j = 0; j < allNotes.length; j++) {
-                this.removeNote(allNotes[j]);
+                this.removeHoverNote(allNotes[j]);
             }
             return;
         }
@@ -281,7 +296,7 @@ class StaffComponent extends HTMLElement {
                 continue;
             }
 
-            this.removeNote(midiNote);
+            this.removeHoverNote(midiNote);
         }
     }
 
@@ -361,6 +376,9 @@ class StaffComponent extends HTMLElement {
             if (this.currentMidiNotes.includes(midiNote)) {
                 noteDiv.classList.add("active");
             }
+            if (this.hoverMidiNotes.includes(midiNote)) {
+                noteDiv.classList.add("hover");
+            }
 
             noteDiv.addEventListener("click", this.onNoteClick);
             noteContainer.appendChild(noteDiv);
@@ -439,6 +457,31 @@ class StaffComponent extends HTMLElement {
         var noteEl = this.shadowRoot.getElementById("note" + midiNote);
         if (noteEl) {
             noteEl.classList.remove("active");
+        }
+    }
+
+    addHoverNote(midiNote) {
+        if (this.hoverMidiNotes.includes(midiNote)) {
+            return;
+        }
+
+        this.hoverMidiNotes.push(midiNote);
+
+        var noteEl = this.shadowRoot.getElementById("note" + midiNote);
+        if (noteEl) {
+            noteEl.classList.add("hover");
+        }
+    }
+
+    removeHoverNote(midiNote) {
+        var index = this.hoverMidiNotes.indexOf(midiNote);
+        if (index > -1) {
+            this.hoverMidiNotes.splice(index, 1);
+        }
+
+        var noteEl = this.shadowRoot.getElementById("note" + midiNote);
+        if (noteEl) {
+            noteEl.classList.remove("hover");
         }
     }
 
@@ -602,6 +645,7 @@ class StaffComponent extends HTMLElement {
 
     clear() {
         this.currentMidiNotes = [];
+        this.hoverMidiNotes = [];
         this.updateStatus();
         this.shadowRoot.getElementById("staffContainer").innerHTML = "";
     }

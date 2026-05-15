@@ -14,6 +14,9 @@ class MidiKeyboard extends HTMLElement {
         this.whiteKeyWidth = 25;
 
         this.onMIDIMessage = this.onMIDIMessage.bind(this);
+        this.onKeyboardClick = this.onKeyboardClick.bind(this);
+        this.onKeyMouseOver = this.onKeyMouseOver.bind(this);
+        this.onKeyMouseOut = this.onKeyMouseOut.bind(this);
     }
 
     connectedCallback() {
@@ -149,6 +152,17 @@ class MidiKeyboard extends HTMLElement {
         var note = this.arrayOfAmericanNotes[midiNote % 12];
         var octave = Math.floor(midiNote / 12) - 1;
         return note + octave;
+    }
+
+    dispatchNoteHoverEvent(eventName, noteNumber) {
+        this.dispatchEvent(new CustomEvent(eventName, {
+            detail: {
+                midiNote: noteNumber,
+                note: this.getAmericanNoteFromMidiNote(noteNumber)
+            },
+            bubbles: true,
+            composed: true
+        }));
     }
 
     getMidiFromNoteName(noteName, skipRangeCheck) {
@@ -484,16 +498,47 @@ class MidiKeyboard extends HTMLElement {
         this.updateStatus();
     }
 
-    bindKeyboardClicks() {
-        this.shadowRoot.getElementById("keyboard").addEventListener("click", (event) => {
-            var key = event.target.closest(".key, .blackKey");
-            if (!key) {
-                return;
-            }
+    getEventKey(event) {
+        var key = event.target.closest(".key, .blackKey");
+        if (!key || !this.shadowRoot.getElementById("keyboard").contains(key)) {
+            return null;
+        }
 
-            var noteNumber = Number(key.getAttribute("data-note"));
-            this.addNote(noteNumber);
-        });
+        return key;
+    }
+
+    onKeyboardClick(event) {
+        var key = this.getEventKey(event);
+        if (!key) {
+            return;
+        }
+
+        this.addNote(Number(key.getAttribute("data-note")));
+    }
+
+    onKeyMouseOver(event) {
+        var key = this.getEventKey(event);
+        if (!key || key.contains(event.relatedTarget)) {
+            return;
+        }
+
+        this.dispatchNoteHoverEvent("piano-note-hover", Number(key.getAttribute("data-note")));
+    }
+
+    onKeyMouseOut(event) {
+        var key = this.getEventKey(event);
+        if (!key || key.contains(event.relatedTarget)) {
+            return;
+        }
+
+        this.dispatchNoteHoverEvent("piano-note-unhover", Number(key.getAttribute("data-note")));
+    }
+
+    bindKeyboardClicks() {
+        var keyboard = this.shadowRoot.getElementById("keyboard");
+        keyboard.addEventListener("click", this.onKeyboardClick);
+        keyboard.addEventListener("mouseover", this.onKeyMouseOver);
+        keyboard.addEventListener("mouseout", this.onKeyMouseOut);
     }
 }
 
