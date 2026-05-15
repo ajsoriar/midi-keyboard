@@ -1,4 +1,4 @@
-class GrandStaffStepsComponent extends HTMLElement {
+class MusicBoardComponent extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: "open" });
@@ -40,20 +40,29 @@ class GrandStaffStepsComponent extends HTMLElement {
     }
 }
 
-customElements.define("grand-staff-steps", GrandStaffStepsComponent);
+if (!customElements.get("music-board")) {
+    customElements.define("music-board", MusicBoardComponent);
+}
 
-window.GrandStaffSteps = {
+if (!customElements.get("grand-staff-steps")) {
+    class GrandStaffStepsComponent extends MusicBoardComponent {}
+    customElements.define("grand-staff-steps", GrandStaffStepsComponent);
+}
+
+window.MusicBoard = {
     getElement: function () {
-        return document.querySelector("grand-staff-steps");
+        return document.querySelector("music-board") || document.querySelector("grand-staff-steps");
     },
 
     init: function () {
         var element = this.getElement();
         if (!element) {
-            console.error("No <grand-staff-steps> element found.");
+            console.error("No <music-board> element found.");
             return;
         }
 
         element.init();
     }
 };
+
+window.GrandStaffSteps = window.MusicBoard;

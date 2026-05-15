@@ -1,6 +1,6 @@
 import "./components/keyboard/keyboard.js";
 import "./components/staff/staff.js";
-import "./components/grand-staff-steps/grand-staff-steps.js";
+import "./components/music-board/music-board.js";
 import "./components/metronome/metronome.js";
 import "./components/speaker/speaker.js";
 
@@ -36,6 +36,6 @@ window.Piano.initRange("A0", "C8");
 window.Staff.initRange("C4", "C8", "SOL");
 window.Staff.initRange("A0", "C4", "FA");
 
-window.GrandStaffSteps.init();
+window.MusicBoard.init();
 window.Metronome.init(120);
 window.Speaker.init();
