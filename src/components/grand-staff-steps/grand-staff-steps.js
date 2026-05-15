@@ -9,6 +9,8 @@ class GrandStaffStepsComponent extends HTMLElement {
     }
 
     render() {
+        var stageBackgroundUrl = new URL("../../images/bg-001.png", import.meta.url).href;
+
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
@@ -25,6 +27,7 @@ class GrandStaffStepsComponent extends HTMLElement {
                     outline-offset: 0px;
                     box-sizing: border-box;
                     margin: 0 auto;
+                    background-image: url("${stageBackgroundUrl}");
                 }
             </style>
 

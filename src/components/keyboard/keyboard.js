@@ -8,6 +8,7 @@ class MidiKeyboard extends HTMLElement {
 
         this.currentMidiNotes = [];
         this.currentNotes = [];
+        this.hoverMidiNotes = [];
         this.minMidiNote = 0;
         this.maxMidiNote = 127;
         this.middleCMidiNote = 60;
@@ -119,6 +120,18 @@ class MidiKeyboard extends HTMLElement {
                 .middleC.activeKey {
                     background-color: blue;
                     color: #fff;
+                }
+
+                .hoverKey {
+                    background-color: #00ff00;
+                    color: #000;
+                    box-shadow: inset 0 0 0 2px #00ff00;
+                }
+
+                .activeKey.hoverKey {
+                    background-color: blue;
+                    color: #fff;
+                    box-shadow: inset 0 0 0 2px #00ff00;
                 }
 
                 .octaveMarker {
@@ -251,7 +264,7 @@ class MidiKeyboard extends HTMLElement {
                 continue;
             }
 
-            this.addNote(midiNote);
+            this.addHoverNote(midiNote);
         }
     }
 
@@ -261,9 +274,9 @@ class MidiKeyboard extends HTMLElement {
         }
 
         if (noteNames.length === 0) {
-            var allNotes = this.currentMidiNotes.slice();
+            var allNotes = this.hoverMidiNotes.slice();
             for (var j = 0; j < allNotes.length; j++) {
-                this.removeNote(allNotes[j]);
+                this.removeHoverNote(allNotes[j]);
             }
             return;
         }
@@ -275,7 +288,7 @@ class MidiKeyboard extends HTMLElement {
                 continue;
             }
 
-            this.removeNote(midiNote);
+            this.removeHoverNote(midiNote);
         }
     }
 
@@ -310,6 +323,29 @@ class MidiKeyboard extends HTMLElement {
         var el = this.shadowRoot.getElementById("key" + note);
         if (el) {
             el.classList.remove("activeKey");
+        }
+    }
+
+    addHoverNote(note) {
+        if (!this.hoverMidiNotes.includes(note)) {
+            this.hoverMidiNotes.push(note);
+        }
+
+        var el = this.shadowRoot.getElementById("key" + note);
+        if (el) {
+            el.classList.add("hoverKey");
+        }
+    }
+
+    removeHoverNote(note) {
+        var index = this.hoverMidiNotes.indexOf(note);
+        if (index > -1) {
+            this.hoverMidiNotes.splice(index, 1);
+        }
+
+        var el = this.shadowRoot.getElementById("key" + note);
+        if (el) {
+            el.classList.remove("hoverKey");
         }
     }
 
@@ -435,6 +471,9 @@ class MidiKeyboard extends HTMLElement {
         var keyboard = this.shadowRoot.getElementById("keyboard");
         keyboard.innerHTML = this.getKeyboardHtml(startMidiNote, endMidiNote);
         keyboard.style.width = (this.getWhiteKeyCount(startMidiNote, endMidiNote) * this.whiteKeyWidth) + "px";
+        for (var i = 0; i < this.hoverMidiNotes.length; i++) {
+            this.addHoverNote(this.hoverMidiNotes[i]);
+        }
     }
 
     paintFullKeyboard() {
@@ -496,6 +535,7 @@ class MidiKeyboard extends HTMLElement {
         keyboard.style.width = "0";
         this.currentMidiNotes = [];
         this.currentNotes = [];
+        this.hoverMidiNotes = [];
         this.updateStatus();
     }
 

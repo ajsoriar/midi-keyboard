@@ -10,6 +10,14 @@ document.addEventListener("piano-note-unhover", (event) => {
     window.Staff.unhighlight(event.detail.note);
 });
 
+document.addEventListener("staff-note-hover", (event) => {
+    window.Piano.highlight(event.detail.note);
+});
+
+document.addEventListener("staff-note-unhover", (event) => {
+    window.Piano.unhighlight(event.detail.note);
+});
+
 window.Piano.initRange("A0", "C8");
 
 // all 3 staffs with same range

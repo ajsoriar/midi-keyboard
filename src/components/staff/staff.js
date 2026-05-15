@@ -24,6 +24,8 @@ class StaffComponent extends HTMLElement {
 
         this.onMIDIMessage = this.onMIDIMessage.bind(this);
         this.onNoteClick = this.onNoteClick.bind(this);
+        this.onNoteMouseOver = this.onNoteMouseOver.bind(this);
+        this.onNoteMouseOut = this.onNoteMouseOut.bind(this);
     }
 
     getClefConfig() {
@@ -392,6 +394,8 @@ class StaffComponent extends HTMLElement {
             }
 
             noteDiv.addEventListener("click", this.onNoteClick);
+            noteDiv.addEventListener("mouseover", this.onNoteMouseOver);
+            noteDiv.addEventListener("mouseout", this.onNoteMouseOut);
             noteContainer.appendChild(noteDiv);
         }
     }
@@ -441,6 +445,33 @@ class StaffComponent extends HTMLElement {
 
     onNoteClick(event) {
         this.addNote(Number(event.currentTarget.dataset.note));
+    }
+
+    dispatchNoteHoverEvent(eventName, midiNote) {
+        this.dispatchEvent(new CustomEvent(eventName, {
+            detail: {
+                midiNote: midiNote,
+                note: this.getAmericanNoteFromMidiNote(midiNote)
+            },
+            bubbles: true,
+            composed: true
+        }));
+    }
+
+    onNoteMouseOver(event) {
+        if (event.currentTarget.contains(event.relatedTarget)) {
+            return;
+        }
+
+        this.dispatchNoteHoverEvent("staff-note-hover", Number(event.currentTarget.dataset.note));
+    }
+
+    onNoteMouseOut(event) {
+        if (event.currentTarget.contains(event.relatedTarget)) {
+            return;
+        }
+
+        this.dispatchNoteHoverEvent("staff-note-unhover", Number(event.currentTarget.dataset.note));
     }
 
     addNote(midiNote) {
