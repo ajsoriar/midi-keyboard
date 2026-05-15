@@ -48,6 +48,7 @@ class MidiKeyboard extends HTMLElement {
                     -webkit-user-select: none;
                     -moz-user-select: none;
                     -ms-user-select: none;
+                    margin: auto;
                 }
 
                 .key {

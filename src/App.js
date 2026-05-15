@@ -1,5 +1,6 @@
 import "./components/keyboard/keyboard.js";
 import "./components/staff/staff.js";
+import "./components/grand-staff-steps/grand-staff-steps.js";
 
 document.addEventListener("piano-note-hover", (event) => {
     window.Staff.highlight(event.detail.note);
@@ -24,3 +25,5 @@ window.Piano.initRange("A0", "C8");
 // Best for piano
 window.Staff.initRange("C4", "C8", "SOL");
 window.Staff.initRange("A0", "C4", "FA");
+
+window.GrandStaffSteps.init();

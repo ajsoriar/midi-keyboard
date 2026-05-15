@@ -74,6 +74,9 @@ class StaffComponent extends HTMLElement {
                     position: relative;
                     margin: 0 0;
                     overflow-x: auto;
+                    border: 1px solid #795548;
+                    overflow-y: hidden;
+                    background-color: #9E9E9E;
                 }
 
                 .staff {
@@ -167,6 +170,14 @@ class StaffComponent extends HTMLElement {
                     border-color: #00ff00;
                     color: #ffffff;
                     box-shadow: 0 0 0 2px #00ff00, 0 0 8px rgba(0, 255, 255, 0.6);
+                }
+
+                .status{
+                    position: absolute;
+                    z-index: 100;
+                    padding: 7px;
+                    font-size: 18px;
+                    font-weight: bold;
                 }
             </style>
 
