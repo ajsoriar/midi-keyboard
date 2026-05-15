@@ -1,6 +1,7 @@
 import "./components/keyboard/keyboard.js";
 import "./components/staff/staff.js";
 import "./components/music-board/music-board.js";
+import "./components/speed-staff/speed-staff.js";
 import "./components/metronome/metronome.js";
 import "./components/speaker/speaker.js";
 
@@ -37,5 +38,35 @@ window.Staff.initRange("C4", "C8", "SOL");
 window.Staff.initRange("A0", "C4", "FA");
 
 window.MusicBoard.init();
+window.SpeedStaff.init({
+    name: "Custom-Row-4",
+    size: {
+        wPercentage: "70",
+        h: null // is rows.num x rows.heightPx, so can be left null
+    },
+    position: {
+        xPercentage: "15",
+        yPx: "50",
+    },
+    rows: {
+        num: 7,
+        heightPx: 25
+    }
+});
+window.SpeedStaff.init({
+    name: "Custom-Row-4",
+    size: {
+        wPercentage: "70",
+        h: null // is rows.num x rows.heightPx, so can be left null
+    },
+    position: {
+        xPercentage: "15",
+        yPx: "325",
+    },
+    rows: {
+        num: 15,
+        heightPx: 25
+    }
+});
 window.Metronome.init(120);
 window.Speaker.init();

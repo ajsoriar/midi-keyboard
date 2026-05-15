@@ -20,6 +20,7 @@ class MusicBoardComponent extends HTMLElement {
                 }
 
                 .stage {
+                    position: relative;
                     width: min(100vw, 1920px);
                     aspect-ratio: 16 / 9;
                     background: #c9c9c9;
@@ -37,6 +38,10 @@ class MusicBoardComponent extends HTMLElement {
 
     init() {
         this.render();
+    }
+
+    getStage() {
+        return this.shadowRoot.querySelector(".stage");
     }
 }
 
@@ -62,6 +67,16 @@ window.MusicBoard = {
         }
 
         element.init();
+    },
+
+    getStage: function () {
+        var element = this.getElement();
+        if (!element || typeof element.getStage !== "function") {
+            console.error("No music board stage found.");
+            return null;
+        }
+
+        return element.getStage();
     }
 };
 
