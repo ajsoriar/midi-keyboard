@@ -40,6 +40,7 @@ window.Staff.initRange("A0", "C4", "FA");
 window.MusicBoard.init();
 window.SpeedStaff.init({
     name: "Custom-Row-4",
+    clave: "SOL",
     size: {
         wPercentage: "70",
         h: null // is rows.num x rows.heightPx, so can be left null
@@ -55,6 +56,7 @@ window.SpeedStaff.init({
 });
 window.SpeedStaff.init({
     name: "Custom-Row-4",
+    clave: "FA",
     size: {
         wPercentage: "70",
         h: null // is rows.num x rows.heightPx, so can be left null
