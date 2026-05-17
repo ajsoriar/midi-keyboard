@@ -8,12 +8,26 @@ class SpeedStaffComponent extends HTMLElement {
         this.x = "0px";
         this.y = "0px";
         this.rowHeight = 25;
-        this.rowCount = 1;
+        this.rowCount = 5;
+        this.guideLinesAbove = 0;
+        this.guideLinesBelow = 0;
+        this.maxGuideLines = 32;
         this.lines = [];
+        this.notesVisible = false;
+
+        this.onNoteHover = this.onNoteHover.bind(this);
+        this.onNoteUnhover = this.onNoteUnhover.bind(this);
+        this.onLineMouseOver = this.onLineMouseOver.bind(this);
+        this.onLineMouseOut = this.onLineMouseOut.bind(this);
     }
 
     connectedCallback() {
+        this.bindNoteEvents();
         this.render();
+    }
+
+    disconnectedCallback() {
+        this.unbindNoteEvents();
     }
 
     init(options) {
@@ -30,8 +44,8 @@ class SpeedStaffComponent extends HTMLElement {
         this.width = this.normalizePercentage(size.wPercentage, "50%");
         this.x = this.normalizePercentage(position.xPercentage, "0%");
         this.y = this.normalizeCssSize(position.yPx, "0px", false);
-        this.rowCount = this.normalizePositiveInteger(rows.num, 1);
         this.rowHeight = this.normalizePositiveInteger(rows.heightPx, 25);
+        this.applyRowConfig(rows);
         this.height = this.normalizeHeight(size.h, this.rowCount * this.rowHeight);
         this.dataset.name = this.name;
         this.clave = options.clave || null;
@@ -76,6 +90,45 @@ class SpeedStaffComponent extends HTMLElement {
         }
 
         return Math.round(numericValue);
+    }
+
+    normalizeRowCount(value, fallback) {
+        return Math.max(5, this.normalizePositiveInteger(value, fallback));
+    }
+
+    normalizeGuideLineCount(value, fallback) {
+        var numericValue = Number(value);
+        if (!Number.isFinite(numericValue) || numericValue < 0) {
+            return fallback;
+        }
+
+        return Math.min(this.maxGuideLines, Math.round(numericValue));
+    }
+
+    hasGuideLineConfig(rows) {
+        return rows.guideLinesAbove !== undefined ||
+            rows.guideLinesBelow !== undefined ||
+            rows.guideLinesBefore !== undefined ||
+            rows.guideLinesAfter !== undefined;
+    }
+
+    applyRowConfig(rows) {
+        if (this.hasGuideLineConfig(rows)) {
+            this.guideLinesAbove = this.normalizeGuideLineCount(
+                rows.guideLinesAbove !== undefined ? rows.guideLinesAbove : rows.guideLinesBefore,
+                0
+            );
+            this.guideLinesBelow = this.normalizeGuideLineCount(
+                rows.guideLinesBelow !== undefined ? rows.guideLinesBelow : rows.guideLinesAfter,
+                0
+            );
+            this.rowCount = this.guideLinesAbove + 5 + this.guideLinesBelow;
+            return;
+        }
+
+        this.rowCount = this.normalizeRowCount(rows.num, 5);
+        this.guideLinesAbove = Math.max(0, Math.floor((this.rowCount - 5) / 2));
+        this.guideLinesBelow = Math.max(0, this.rowCount - 5 - this.guideLinesAbove);
     }
 
     normalizeHeight(value, calculatedHeight) {
@@ -140,14 +193,17 @@ class SpeedStaffComponent extends HTMLElement {
         var rows = [];
         for (var index = 0; index < this.rowCount; index++) {
             var rowClass = this.getLineClass(index);
-            rows.push(`<tr class="${rowClass}"><td></td></tr>`);
+            var lineNote = this.getLineNote(index);
+            var lineMidiNote = this.getMidiNoteFromLineIndex(index);
+            var noteClass = this.notesVisible ? "nota" : "nota hidden";
+            rows.push(`<tr class="${rowClass}" data-midi-note="${lineMidiNote}" data-note="${lineNote}"><td><div class="${noteClass}" data-note="${lineNote}">${lineNote}</div></td></tr>`);
         }
 
         return rows.join("");
     }
 
     getLineClass(index) {
-        var firstBlackLineIndex = Math.max(0, Math.floor((this.rowCount - 5) / 2));
+        var firstBlackLineIndex = this.getFirstBlackLineIndex();
         var lastBlackLineIndex = Math.min(this.rowCount - 1, firstBlackLineIndex + 4);
 
         if (index >= firstBlackLineIndex && index <= lastBlackLineIndex) {
@@ -184,9 +240,12 @@ class SpeedStaffComponent extends HTMLElement {
         return clefs[claveType] || clefs.SOL;
     }
 
+    getFirstBlackLineIndex() {
+        return this.guideLinesAbove;
+    }
+
     getStaffTopOffset() {
-        var firstBlackLineIndex = Math.max(0, Math.floor((this.rowCount - 5) / 2));
-        return firstBlackLineIndex * this.rowHeight;
+        return this.getFirstBlackLineIndex() * this.rowHeight;
     }
 
     getLineTop(index) {
@@ -209,14 +268,38 @@ class SpeedStaffComponent extends HTMLElement {
         return notes[naturalIndex] + octave;
     }
 
+    getMidiNoteFromDiatonicStep(diatonicStep) {
+        var pitchClasses = [0, 2, 4, 5, 7, 9, 11];
+        var naturalIndex = ((diatonicStep % pitchClasses.length) + pitchClasses.length) % pitchClasses.length;
+        var octave = Math.floor(diatonicStep / pitchClasses.length);
+
+        return (octave + 1) * 12 + pitchClasses[naturalIndex];
+    }
+
     getLineNote(index) {
+        return this.getNaturalNoteFromDiatonicStep(this.getDiatonicStepFromLineIndex(index));
+    }
+
+    getMidiNoteFromLineIndex(index) {
+        return this.getMidiNoteFromDiatonicStep(this.getDiatonicStepFromLineIndex(index));
+    }
+
+    getDiatonicStepFromLineIndex(index) {
         var clefConfig = this.getClefConfig(this.clave);
-        var firstBlackLineIndex = Math.max(0, Math.floor((this.rowCount - 5) / 2));
+        var firstBlackLineIndex = this.getFirstBlackLineIndex();
         var anchorRowIndex = firstBlackLineIndex + clefConfig.anchorLineIndex;
         var anchorStep = this.getDiatonicStepFromMidiNote(clefConfig.anchorMidiNote);
         var rowOffset = index - anchorRowIndex;
 
-        return this.getNaturalNoteFromDiatonicStep(anchorStep - (rowOffset * 2));
+        return anchorStep - (rowOffset * 2);
+    }
+
+    getLineNoteFromMidiNote(midiNote) {
+        if (!Number.isInteger(midiNote) || midiNote < 0 || midiNote > 127) {
+            return null;
+        }
+
+        return this.getNaturalNoteFromDiatonicStep(this.getDiatonicStepFromMidiNote(midiNote));
     }
 
     getLineInfo(index) {
@@ -246,13 +329,132 @@ class SpeedStaffComponent extends HTMLElement {
         return {
             name: this.name,
             clef: this.clave,
+            width: this.width,
+            height: this.height,
+            left: this.x,
+            top: this.y,
+            rowHeight: this.rowHeight,
+            rowCount: this.rowCount,
+            guideLinesAbove: this.guideLinesAbove,
+            guideLinesBelow: this.guideLinesBelow,
+            notesVisible: this.notesVisible,
             lines: this.lines.slice()
         };
     }
 
+    setNotesVisible(isVisible) {
+        this.notesVisible = Boolean(isVisible);
+
+        var notes = this.shadowRoot.querySelectorAll(".nota");
+        notes.forEach(function (note) {
+            note.classList.toggle("hidden", !isVisible);
+        });
+    }
+
+    showNotes() {
+        this.setNotesVisible(true);
+    }
+
+    hideNotes() {
+        this.setNotesVisible(false);
+    }
+
+    bindNoteEvents() {
+        document.addEventListener("piano-note-hover", this.onNoteHover);
+        document.addEventListener("piano-note-unhover", this.onNoteUnhover);
+        document.addEventListener("staff-note-hover", this.onNoteHover);
+        document.addEventListener("staff-note-unhover", this.onNoteUnhover);
+    }
+
+    unbindNoteEvents() {
+        document.removeEventListener("piano-note-hover", this.onNoteHover);
+        document.removeEventListener("piano-note-unhover", this.onNoteUnhover);
+        document.removeEventListener("staff-note-hover", this.onNoteHover);
+        document.removeEventListener("staff-note-unhover", this.onNoteUnhover);
+    }
+
+    onNoteHover(event) {
+        this.highlightMidiNote(event.detail && event.detail.midiNote);
+    }
+
+    onNoteUnhover(event) {
+        this.unhighlightMidiNote(event.detail && event.detail.midiNote);
+    }
+
+    highlightMidiNote(midiNote) {
+        this.setNoteActive(this.getLineNoteFromMidiNote(midiNote), true);
+    }
+
+    unhighlightMidiNote(midiNote) {
+        this.setNoteActive(this.getLineNoteFromMidiNote(midiNote), false);
+    }
+
+    setNoteActive(noteName, isActive) {
+        if (!noteName) {
+            return;
+        }
+
+        var notes = this.shadowRoot.querySelectorAll(".nota");
+        notes.forEach(function (note) {
+            if (note.dataset.note === noteName) {
+                note.classList.toggle("active", isActive);
+            }
+        });
+    }
+
+    dispatchNoteHoverEvent(eventName, midiNote) {
+        this.dispatchEvent(new CustomEvent(eventName, {
+            detail: {
+                midiNote: midiNote,
+                note: this.getAmericanNoteFromMidiNote(midiNote)
+            },
+            bubbles: true,
+            composed: true
+        }));
+    }
+
+    getAmericanNoteFromMidiNote(midiNote) {
+        var notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        var note = notes[midiNote % 12];
+        var octave = Math.floor(midiNote / 12) - 1;
+
+        return note + octave;
+    }
+
+    getEventLine(event) {
+        if (!event.target || typeof event.target.closest !== "function") {
+            return null;
+        }
+
+        var line = event.target.closest("tr");
+        if (!line || !this.shadowRoot.contains(line)) {
+            return null;
+        }
+
+        return line;
+    }
+
+    onLineMouseOver(event) {
+        var line = this.getEventLine(event);
+        if (!line || line.contains(event.relatedTarget)) {
+            return;
+        }
+
+        this.dispatchNoteHoverEvent("staff-note-hover", Number(line.dataset.midiNote));
+    }
+
+    onLineMouseOut(event) {
+        var line = this.getEventLine(event);
+        if (!line || line.contains(event.relatedTarget)) {
+            return;
+        }
+
+        this.dispatchNoteHoverEvent("staff-note-unhover", Number(line.dataset.midiNote));
+    }
+
     getClefTopOffset(claveInfo) {
         var clefConfig = this.getClefConfig(this.clave);
-        var firstBlackLineIndex = Math.max(0, Math.floor((this.rowCount - 5) / 2));
+        var firstBlackLineIndex = this.getFirstBlackLineIndex();
         var anchorRowIndex = firstBlackLineIndex + clefConfig.anchorLineIndex;
 
         return Math.round(this.getLineTop(anchorRowIndex) - claveInfo.centerY);
@@ -304,9 +506,34 @@ class SpeedStaffComponent extends HTMLElement {
                 }
 
                 td {
+                    position: relative;
                     padding: 0;
                     background-repeat: no-repeat;
                     background-position: left center;
+                }
+
+                .nota {
+                    position: absolute;
+                    left: 4px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    font-size: 10px;
+                    line-height: 1;
+                    color: #666666;
+                    pointer-events: none;
+                    z-index: 1;
+                }
+
+                .nota.active {
+                    color: #ffffff;
+                    background: #0057ff;
+                    padding: 2px 4px;
+                    border-radius: 3px;
+                    font-weight: bold;
+                }
+
+                .hidden {
+                    display: none;
                 }
 
                 .staff-line td {
@@ -335,6 +562,12 @@ class SpeedStaffComponent extends HTMLElement {
                 <div id="clave" class="clave" style="${claveStyle}"></div>
             </div>
         `;
+
+        var table = this.shadowRoot.querySelector("table");
+        if (table) {
+            table.addEventListener("mouseover", this.onLineMouseOver);
+            table.addEventListener("mouseout", this.onLineMouseOut);
+        }
     }
 }
 
@@ -343,10 +576,16 @@ if (!customElements.get("speed-staff")) {
 }
 
 window.SpeedStaff = {
+    instances: [],
     pentagrams: [],
 
+    updateInstances: function () {
+        this.instances = this.getElements();
+    },
+
     updatePentagrams: function () {
-        this.pentagrams = this.getElements().map(function (element) {
+        this.updateInstances();
+        this.pentagrams = this.instances.map(function (element) {
             return element.getPentagramInfo();
         });
     },
@@ -363,6 +602,61 @@ window.SpeedStaff = {
         }
 
         return stage.querySelector(`speed-staff[data-name="${CSS.escape(name)}"]`);
+    },
+
+    getElementByIndex: function (index) {
+        this.updateInstances();
+
+        var numericIndex = Number(index);
+        if (!Number.isInteger(numericIndex) || numericIndex < 0 || numericIndex >= this.instances.length) {
+            console.error("SpeedStaff index must be an integer between 0 and " + (this.instances.length - 1) + ".");
+            return null;
+        }
+
+        return this.instances[numericIndex];
+    },
+
+    getInstance: function (index) {
+        return this.getElementByIndex(index);
+    },
+
+    removeElement: function (element) {
+        if (!element) {
+            return false;
+        }
+
+        element.remove();
+        this.updatePentagrams();
+        return true;
+    },
+
+    destroy: function (index) {
+        return this.removeElement(this.getElementByIndex(index));
+    },
+
+    destroyByName: function (name) {
+        var elements = this.getElements(name);
+        if (elements.length === 0) {
+            console.error("No SpeedStaff instances found for name \"" + name + "\".");
+            return 0;
+        }
+
+        elements.forEach(function (element) {
+            element.remove();
+        });
+        this.updatePentagrams();
+
+        return elements.length;
+    },
+
+    destroyAll: function () {
+        var elements = this.getElements();
+        elements.forEach(function (element) {
+            element.remove();
+        });
+        this.updatePentagrams();
+
+        return elements.length;
     },
 
     getElements: function (name) {
@@ -410,5 +704,29 @@ window.SpeedStaff = {
         element.init(options);
         this.updatePentagrams();
         return element;
+    },
+
+    show: {
+        notes: function (index) {
+            var element = window.SpeedStaff.getElementByIndex(index);
+            if (!element) {
+                return;
+            }
+
+            element.showNotes();
+            window.SpeedStaff.updatePentagrams();
+        }
+    },
+
+    hide: {
+        notes: function (index) {
+            var element = window.SpeedStaff.getElementByIndex(index);
+            if (!element) {
+                return;
+            }
+
+            element.hideNotes();
+            window.SpeedStaff.updatePentagrams();
+        }
     }
 };

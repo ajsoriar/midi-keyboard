@@ -279,9 +279,13 @@ class StaffComponent extends HTMLElement {
         }
 
         for (var i = 0; i < noteNames.length; i++) {
-            var midiNote = this.getMidiFromNoteName(noteNames[i]);
+            var midiNote = this.getMidiFromNoteName(noteNames[i], true);
             if (midiNote === null) {
-                console.error("Staff.highlight: nota invalida -> " + noteNames[i]);
+                console.warn("Staff.highlight: invalid note -> " + noteNames[i]);
+                continue;
+            }
+
+            if (midiNote < this.minMidiNote || midiNote > this.maxMidiNote) {
                 continue;
             }
 
@@ -303,9 +307,13 @@ class StaffComponent extends HTMLElement {
         }
 
         for (var i = 0; i < noteNames.length; i++) {
-            var midiNote = this.getMidiFromNoteName(noteNames[i]);
+            var midiNote = this.getMidiFromNoteName(noteNames[i], true);
             if (midiNote === null) {
-                console.error("Staff.unhighlight: nota invalida -> " + noteNames[i]);
+                console.warn("Staff.unhighlight: invalid note -> " + noteNames[i]);
+                continue;
+            }
+
+            if (midiNote < this.minMidiNote || midiNote > this.maxMidiNote) {
                 continue;
             }
 

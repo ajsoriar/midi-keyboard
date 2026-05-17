@@ -43,14 +43,15 @@ window.SpeedStaff.init({
     clave: "SOL",
     size: {
         wPercentage: "70",
-        h: null // is rows.num x rows.heightPx, so can be left null
+        h: null // is (5 + guideLinesAbove + guideLinesBelow) x rows.heightPx, so can be left null
     },
     position: {
         xPercentage: "15",
         yPx: "50",
     },
     rows: {
-        num: 7,
+        guideLinesAbove: 1,
+        guideLinesBelow: 1,
         heightPx: 25
     }
 });
@@ -59,16 +60,19 @@ window.SpeedStaff.init({
     clave: "FA",
     size: {
         wPercentage: "70",
-        h: null // is rows.num x rows.heightPx, so can be left null
+        h: null // is (5 + guideLinesAbove + guideLinesBelow) x rows.heightPx, so can be left null
     },
     position: {
         xPercentage: "15",
         yPx: "325",
     },
     rows: {
-        num: 15,
+        guideLinesAbove: 5,
+        guideLinesBelow: 5,
         heightPx: 25
     }
 });
+SpeedStaff.show.notes(0);
+SpeedStaff.show.notes(1);
 window.Metronome.init(120);
 window.Speaker.init();
