@@ -37,7 +37,7 @@ class MidiMetronome extends HTMLElement {
                 }
 
                 .metronome {
-                    width: 180px;
+                    width: 130px;
                     background: rgba(255, 255, 255, 0.95);
                     border: 1px solid #333;
                     border-radius: 8px;

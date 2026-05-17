@@ -219,6 +219,7 @@ class SpeedStaffComponent extends HTMLElement {
             </style>
 
             <div class="speed-staff">
+                <div id="clave" class="clave"></div>
                 <table aria-hidden="true">
                     <tbody>
                         ${this.getRowsHtml()}
