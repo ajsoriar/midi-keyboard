@@ -103,6 +103,7 @@ class MidiMetronome extends HTMLElement {
                     <button type="button" id="startButton" class="startButton">Start</button>
                     <button type="button" id="stopButton" class="stopButton">Stop</button>
                 </div>
+                <br>
                 <div class="presets">${presetButtonsHtml}</div>
                 <div id="status" class="status">Stopped</div>
             </div>
