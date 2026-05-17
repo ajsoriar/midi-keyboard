@@ -85,7 +85,7 @@ class StaffComponent extends HTMLElement {
                     overflow-x: auto;
                     border: 1px solid #795548;
                     overflow-y: hidden;
-                    background-color: #9E9E9E;
+                    background-color: #e1e1e1;
                 }
 
                 .staff {

@@ -20,15 +20,18 @@ class SpeedStaffComponent extends HTMLElement {
         this.onNoteUnhover = this.onNoteUnhover.bind(this);
         this.onLineMouseOver = this.onLineMouseOver.bind(this);
         this.onLineMouseOut = this.onLineMouseOut.bind(this);
+        this.onLaunchEvent = this.onLaunchEvent.bind(this);
     }
 
     connectedCallback() {
         this.bindNoteEvents();
+        document.addEventListener("launch-event", this.onLaunchEvent);
         this.render();
     }
 
     disconnectedCallback() {
         this.unbindNoteEvents();
+        document.removeEventListener("launch-event", this.onLaunchEvent);
     }
 
     init(options) {
@@ -123,13 +126,14 @@ class SpeedStaffComponent extends HTMLElement {
                 rows.guideLinesBelow !== undefined ? rows.guideLinesBelow : rows.guideLinesAfter,
                 0
             );
-            this.rowCount = this.guideLinesAbove + 5 + this.guideLinesBelow;
+            this.rowCount = (this.guideLinesAbove + 5 + this.guideLinesBelow) * 2 - 1;
             return;
         }
 
-        this.rowCount = this.normalizeRowCount(rows.num, 5);
-        this.guideLinesAbove = Math.max(0, Math.floor((this.rowCount - 5) / 2));
-        this.guideLinesBelow = Math.max(0, this.rowCount - 5 - this.guideLinesAbove);
+        var lineCount = this.normalizeRowCount(rows.num, 5);
+        this.guideLinesAbove = Math.max(0, Math.floor((lineCount - 5) / 2));
+        this.guideLinesBelow = Math.max(0, lineCount - 5 - this.guideLinesAbove);
+        this.rowCount = lineCount * 2 - 1;
     }
 
     normalizeHeight(value, calculatedHeight) {
@@ -204,8 +208,12 @@ class SpeedStaffComponent extends HTMLElement {
     }
 
     getLineClass(index) {
+        if (index % 2 !== 0) {
+            return "space-row";
+        }
+
         var firstBlackLineIndex = this.getFirstBlackLineIndex();
-        var lastBlackLineIndex = Math.min(this.rowCount - 1, firstBlackLineIndex + 4);
+        var lastBlackLineIndex = firstBlackLineIndex + 8;
 
         if (index >= firstBlackLineIndex && index <= lastBlackLineIndex) {
             return "staff-line";
@@ -242,7 +250,7 @@ class SpeedStaffComponent extends HTMLElement {
     }
 
     getFirstBlackLineIndex() {
-        return this.guideLinesAbove;
+        return this.guideLinesAbove * 2;
     }
 
     getStaffTopOffset() {
@@ -288,11 +296,11 @@ class SpeedStaffComponent extends HTMLElement {
     getDiatonicStepFromLineIndex(index) {
         var clefConfig = this.getClefConfig(this.clave);
         var firstBlackLineIndex = this.getFirstBlackLineIndex();
-        var anchorRowIndex = firstBlackLineIndex + clefConfig.anchorLineIndex;
+        var anchorRowIndex = firstBlackLineIndex + (clefConfig.anchorLineIndex * 2);
         var anchorStep = this.getDiatonicStepFromMidiNote(clefConfig.anchorMidiNote);
         var rowOffset = index - anchorRowIndex;
 
-        return anchorStep - (rowOffset * 2);
+        return anchorStep - rowOffset;
     }
 
     getLineNoteFromMidiNote(midiNote) {
@@ -470,10 +478,46 @@ class SpeedStaffComponent extends HTMLElement {
         this.dispatchNoteHoverEvent("staff-note-unhover", Number(line.dataset.midiNote));
     }
 
+    onLaunchEvent(event) {
+        var detail = event.detail || {};
+        if (!Array.isArray(detail.notes)) {
+            return;
+        }
+
+        this.clearGuideLineHighlights();
+
+        for (var i = 0; i < detail.notes.length; i++) {
+            var noteConfig = detail.notes[i] || {};
+            var noteName = noteConfig.nota || noteConfig.note;
+            if (!noteName || !noteConfig.color) {
+                continue;
+            }
+
+            var normalizedName = noteName.charAt(0).toUpperCase() + noteName.slice(1).toLowerCase();
+            this.colorGuideLine(normalizedName, noteConfig.color);
+        }
+    }
+
+    clearGuideLineHighlights() {
+        var highlighted = this.shadowRoot.querySelectorAll("tr");
+        for (var i = 0; i < highlighted.length; i++) {
+            highlighted[i].style.backgroundColor = "";
+        }
+    }
+
+    colorGuideLine(noteName, color) {
+        var rows = this.shadowRoot.querySelectorAll("tr");
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i].getAttribute("data-note") === noteName) {
+                rows[i].style.backgroundColor = color;
+            }
+        }
+    }
+
     getClefTopOffset(claveInfo) {
         var clefConfig = this.getClefConfig(this.clave);
         var firstBlackLineIndex = this.getFirstBlackLineIndex();
-        var anchorRowIndex = firstBlackLineIndex + clefConfig.anchorLineIndex;
+        var anchorRowIndex = firstBlackLineIndex + (clefConfig.anchorLineIndex * 2);
 
         return Math.round(this.getLineTop(anchorRowIndex) - claveInfo.centerY);
     }
@@ -576,6 +620,12 @@ class SpeedStaffComponent extends HTMLElement {
                     background-image: linear-gradient(#d0d0d0, #d0d0d0);
                     background-size: 100% 1px;
                 }
+
+                .space-row td {
+                    background-image: none;
+                }
+
+
 
             .clave {
                 position: absolute;

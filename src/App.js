@@ -65,7 +65,7 @@ window.SpeedStaff.init({
     rows: {
         guideLinesAbove: 1,
         guideLinesBelow: 1,
-        heightPx: 25
+        heightPx: 12
     }
 });
 window.SpeedStaff.init({
@@ -82,7 +82,7 @@ window.SpeedStaff.init({
     rows: {
         guideLinesAbove: 5,
         guideLinesBelow: 5,
-        heightPx: 25
+        heightPx: 12
     }
 });
 SpeedStaff.show.notes(0);
