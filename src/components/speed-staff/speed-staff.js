@@ -9,6 +9,7 @@ class SpeedStaffComponent extends HTMLElement {
         this.y = "0px";
         this.rowHeight = 25;
         this.rowCount = 1;
+        this.lines = [];
     }
 
     connectedCallback() {
@@ -33,6 +34,7 @@ class SpeedStaffComponent extends HTMLElement {
         this.rowHeight = this.normalizePositiveInteger(rows.heightPx, 25);
         this.height = this.normalizeHeight(size.h, this.rowCount * this.rowHeight);
         this.dataset.name = this.name;
+        this.clave = options.clave || null;
 
         this.render();
     }
@@ -155,8 +157,120 @@ class SpeedStaffComponent extends HTMLElement {
         return "guide-line";
     }
 
+    getClaveImageInfo(claveType) {
+        var images = {
+            SOL: { file: "clave-sol_44x130_center-22-85.png", w: 44, h: 130, centerX: 22, centerY: 85 },
+            FA:  { file: "clave-fa_44x64_center-22-20.png",  w: 44, h: 64,  centerX: 22, centerY: 20 }
+        };
+        return images[claveType] || null;
+    }
+
+    getClefConfig(claveType) {
+        var clefs = {
+            SOL: {
+                anchorMidiNote: 67,
+                anchorLineIndex: 3
+            },
+            FA: {
+                anchorMidiNote: 53,
+                anchorLineIndex: 1
+            },
+            DO: {
+                anchorMidiNote: 60,
+                anchorLineIndex: 2
+            }
+        };
+
+        return clefs[claveType] || clefs.SOL;
+    }
+
+    getStaffTopOffset() {
+        var firstBlackLineIndex = Math.max(0, Math.floor((this.rowCount - 5) / 2));
+        return firstBlackLineIndex * this.rowHeight;
+    }
+
+    getLineTop(index) {
+        return (index * this.rowHeight) + (this.rowHeight / 2);
+    }
+
+    getDiatonicStepFromMidiNote(midiNote) {
+        var pitchClass = midiNote % 12;
+        var octave = Math.floor(midiNote / 12) - 1;
+        var naturalStepByPitchClass = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
+
+        return (octave * 7) + naturalStepByPitchClass[pitchClass];
+    }
+
+    getNaturalNoteFromDiatonicStep(diatonicStep) {
+        var notes = ["Do", "Re", "Mi", "Fa", "Sol", "La", "Si"];
+        var naturalIndex = ((diatonicStep % notes.length) + notes.length) % notes.length;
+        var octave = Math.floor(diatonicStep / notes.length);
+
+        return notes[naturalIndex] + octave;
+    }
+
+    getLineNote(index) {
+        var clefConfig = this.getClefConfig(this.clave);
+        var firstBlackLineIndex = Math.max(0, Math.floor((this.rowCount - 5) / 2));
+        var anchorRowIndex = firstBlackLineIndex + clefConfig.anchorLineIndex;
+        var anchorStep = this.getDiatonicStepFromMidiNote(clefConfig.anchorMidiNote);
+        var rowOffset = index - anchorRowIndex;
+
+        return this.getNaturalNoteFromDiatonicStep(anchorStep - (rowOffset * 2));
+    }
+
+    getLineInfo(index) {
+        var lineClass = this.getLineClass(index);
+
+        return {
+            note: this.getLineNote(index),
+            color: lineClass === "staff-line" ? "black" : "gray",
+            lineNumber: index + 1,
+            top: this.getLineTop(index)
+        };
+    }
+
+    updateLines() {
+        var lines = [];
+        for (var index = 0; index < this.rowCount; index++) {
+            lines.push(this.getLineInfo(index));
+        }
+
+        this.lines = lines;
+        if (window.SpeedStaff && typeof window.SpeedStaff.updatePentagrams === "function") {
+            window.SpeedStaff.updatePentagrams();
+        }
+    }
+
+    getPentagramInfo() {
+        return {
+            name: this.name,
+            clef: this.clave,
+            lines: this.lines.slice()
+        };
+    }
+
+    getClefTopOffset(claveInfo) {
+        var clefConfig = this.getClefConfig(this.clave);
+        var firstBlackLineIndex = Math.max(0, Math.floor((this.rowCount - 5) / 2));
+        var anchorRowIndex = firstBlackLineIndex + clefConfig.anchorLineIndex;
+
+        return Math.round(this.getLineTop(anchorRowIndex) - claveInfo.centerY);
+    }
+
     render() {
         var backLineUrl = new URL("../../images/back-line.png", import.meta.url).href;
+        this.updateLines();
+
+        var claveStyle = "";
+        if (this.clave) {
+            var claveInfo = this.getClaveImageInfo(this.clave);
+            if (claveInfo) {
+                var claveUrl = new URL("../../images/" + claveInfo.file, import.meta.url).href;
+                var topOffset = this.getClefTopOffset(claveInfo);
+                claveStyle = "width:" + claveInfo.w + "px;height:" + claveInfo.h + "px;top:" + topOffset + "px;background-image:url('" + claveUrl + "');";
+            }
+        }
 
         this.shadowRoot.innerHTML = `
             <style>
@@ -205,27 +319,20 @@ class SpeedStaffComponent extends HTMLElement {
                     background-size: 100% 1px;
                 }
 
-                .clave {
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background-image: url('./assets/clave.png');
-                    background-size: contain;
-                    background-repeat: no-repeat;
-                    background-position: center;
-                }
+            .clave {
+                position: absolute;
+                left: 0;
+                background-repeat: no-repeat;
+            }
             </style>
 
             <div class="speed-staff">
-                <div id="clave" class="clave"></div>
                 <table aria-hidden="true">
                     <tbody>
                         ${this.getRowsHtml()}
                     </tbody>
                 </table>
-                <div id="clave" class="clave"></div>
+                <div id="clave" class="clave" style="${claveStyle}"></div>
             </div>
         `;
     }
@@ -236,6 +343,19 @@ if (!customElements.get("speed-staff")) {
 }
 
 window.SpeedStaff = {
+    pentagrams: [],
+
+    updatePentagrams: function () {
+        this.pentagrams = this.getElements().map(function (element) {
+            return element.getPentagramInfo();
+        });
+    },
+
+    getPentagrams: function () {
+        this.updatePentagrams();
+        return this.pentagrams;
+    },
+
     getElement: function (name) {
         var stage = this.getStage();
         if (!stage) {
@@ -288,6 +408,7 @@ window.SpeedStaff = {
         stage.appendChild(element);
 
         element.init(options);
+        this.updatePentagrams();
         return element;
     }
 };
