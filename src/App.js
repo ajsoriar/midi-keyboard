@@ -4,6 +4,13 @@ import "./components/music-board/music-board.js";
 import "./components/speed-staff/speed-staff.js";
 import "./components/metronome/metronome.js";
 import "./components/speaker/speaker.js";
+import "./components/layout/layout.js";
+
+window.LaunchEvent = function (detail) {
+    document.dispatchEvent(new CustomEvent("launch-event", {
+        detail: detail
+    }));
+};
 
 document.addEventListener("piano-note-hover", (event) => {
     window.Staff.highlight(event.detail.note);
@@ -36,6 +43,12 @@ window.Piano.initRange("A0", "C8");
 // Best for piano
 window.Staff.initRange("C4", "C8", "SOL");
 window.Staff.initRange("A0", "C4", "FA");
+
+window.LaunchEvent({
+    notes: [
+        { nota: "DO4", color: "yellow" }
+    ]
+});
 
 window.MusicBoard.init();
 window.SpeedStaff.init({
@@ -74,5 +87,8 @@ window.SpeedStaff.init({
 });
 SpeedStaff.show.notes(0);
 SpeedStaff.show.notes(1);
+SpeedStaff.show.edgeLine(0);
+SpeedStaff.show.edgeLine(1);
+
 window.Metronome.init(120);
 window.Speaker.init();

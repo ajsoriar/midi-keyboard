@@ -14,6 +14,7 @@ class SpeedStaffComponent extends HTMLElement {
         this.maxGuideLines = 32;
         this.lines = [];
         this.notesVisible = false;
+        this.edgeLineVisible = false;
 
         this.onNoteHover = this.onNoteHover.bind(this);
         this.onNoteUnhover = this.onNoteUnhover.bind(this);
@@ -359,6 +360,23 @@ class SpeedStaffComponent extends HTMLElement {
         this.setNotesVisible(false);
     }
 
+    setEdgeLineVisible(isVisible) {
+        this.edgeLineVisible = Boolean(isVisible);
+
+        var edgeLine = this.shadowRoot.querySelector(".edge-line");
+        if (edgeLine) {
+            edgeLine.classList.toggle("hidden", !this.edgeLineVisible);
+        }
+    }
+
+    showEdgeLine() {
+        this.setEdgeLineVisible(true);
+    }
+
+    hideEdgeLine() {
+        this.setEdgeLineVisible(false);
+    }
+
     bindNoteEvents() {
         document.addEventListener("piano-note-hover", this.onNoteHover);
         document.addEventListener("piano-note-unhover", this.onNoteUnhover);
@@ -487,6 +505,7 @@ class SpeedStaffComponent extends HTMLElement {
                 }
 
                 .speed-staff {
+                    position: relative;
                     width: 100%;
                     height: 100%;
                     box-sizing: border-box;
@@ -536,6 +555,18 @@ class SpeedStaffComponent extends HTMLElement {
                     display: none;
                 }
 
+                .edge-line {
+                    position: absolute;
+                    top: 0;
+                    left: 10%;
+                    width: 5px;
+                    height: 100%;
+                    background: red;
+                    opacity: 0.7;
+                    pointer-events: none;
+                    z-index: 2;
+                }
+
                 .staff-line td {
                     background-image: url("${backLineUrl}");
                     background-repeat: repeat-x;
@@ -550,6 +581,7 @@ class SpeedStaffComponent extends HTMLElement {
                 position: absolute;
                 left: 0;
                 background-repeat: no-repeat;
+                z-index: 3;
             }
             </style>
 
@@ -560,6 +592,7 @@ class SpeedStaffComponent extends HTMLElement {
                     </tbody>
                 </table>
                 <div id="clave" class="clave" style="${claveStyle}"></div>
+                <div class="edge-line${this.edgeLineVisible ? "" : " hidden"}"></div>
             </div>
         `;
 
@@ -715,6 +748,16 @@ window.SpeedStaff = {
 
             element.showNotes();
             window.SpeedStaff.updatePentagrams();
+        },
+
+        edgeLine: function (index) {
+            var element = window.SpeedStaff.getElementByIndex(index);
+            if (!element) {
+                return;
+            }
+
+            element.showEdgeLine();
+            window.SpeedStaff.updatePentagrams();
         }
     },
 
@@ -726,6 +769,16 @@ window.SpeedStaff = {
             }
 
             element.hideNotes();
+            window.SpeedStaff.updatePentagrams();
+        },
+
+        edgeLine: function (index) {
+            var element = window.SpeedStaff.getElementByIndex(index);
+            if (!element) {
+                return;
+            }
+
+            element.hideEdgeLine();
             window.SpeedStaff.updatePentagrams();
         }
     }

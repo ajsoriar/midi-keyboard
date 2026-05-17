@@ -9,9 +9,9 @@ class MidiKeyboard extends HTMLElement {
         this.currentMidiNotes = [];
         this.currentNotes = [];
         this.hoverMidiNotes = [];
+        this.customNoteColors = {};
         this.minMidiNote = 0;
         this.maxMidiNote = 127;
-        this.middleCMidiNote = 60;
         this.whiteKeyWidth = 25;
         this.paintIsOn = true;
 
@@ -21,14 +21,21 @@ class MidiKeyboard extends HTMLElement {
         this.onKeyMouseOut = this.onKeyMouseOut.bind(this);
         this.onPaintChange = this.onPaintChange.bind(this);
         this.onClearClick = this.onClearClick.bind(this);
+        this.onClearAllClick = this.onClearAllClick.bind(this);
         this.onCloseClick = this.onCloseClick.bind(this);
+        this.onLaunchEvent = this.onLaunchEvent.bind(this);
     }
 
     connectedCallback() {
         this.render();
         this.bindKeyboardClicks();
         this.bindControls();
+        document.addEventListener("launch-event", this.onLaunchEvent);
         this.setupMIDI();
+    }
+
+    disconnectedCallback() {
+        document.removeEventListener("launch-event", this.onLaunchEvent);
     }
 
     render() {
@@ -119,11 +126,12 @@ class MidiKeyboard extends HTMLElement {
                     color: #fff;
                 }
 
-                .middleC {
-                    background-color: yellow;
+                .customHighlight {
+                    background-color: var(--custom-note-color);
+                    color: #000;
                 }
 
-                .middleC.activeKey {
+                .customHighlight.activeKey {
                     background-color: blue;
                     color: #fff;
                 }
@@ -193,7 +201,8 @@ class MidiKeyboard extends HTMLElement {
             <div id="keyboard"></div>
             <div id="component-controls">
                 <div class="button"><input id="hoverToggle" type="checkbox" checked><label for="hoverToggle">Paint</label></div>
-                <div id="clear" class="button">Clear</div>
+                <div id="clearPaint" class="button">Clear Paint</div>
+                <div id="clearAll" class="button">Clear All</div>
                 <div id="close" class="button">X</div>
             </div>
         `;
@@ -512,8 +521,7 @@ class MidiKeyboard extends HTMLElement {
             if (this.isBlackNote(noteNumber)) {
                 str += "<div class='blackKey' data-note='" + noteNumber + "' id='key" + noteNumber + "' style='left:" + (cont * W - (W / 2 - 2)) + "px'><span>" + noteName + "</span></div>";
             } else {
-                var keyClass = noteNumber === this.middleCMidiNote ? "key middleC" : "key";
-                str += "<div class='" + keyClass + "' data-note='" + noteNumber + "' id='key" + noteNumber + "' style='left:" + cont * W + "px'><span>" + noteName + "</span></div>";
+                str += "<div class='key' data-note='" + noteNumber + "' id='key" + noteNumber + "' style='left:" + cont * W + "px'><span>" + noteName + "</span></div>";
                 cont++;
             }
         }
@@ -530,6 +538,7 @@ class MidiKeyboard extends HTMLElement {
         for (var i = 0; i < this.hoverMidiNotes.length; i++) {
             this.addHoverNote(this.hoverMidiNotes[i]);
         }
+        this.applyCustomNoteColors();
     }
 
     paintFullKeyboard() {
@@ -585,7 +594,7 @@ class MidiKeyboard extends HTMLElement {
         this.initOctave(startOctave, endOctave);
     }
 
-    clear() {
+    clearPaint() {
         this.currentMidiNotes = [];
         this.currentNotes = [];
         this.updateStatus();
@@ -596,10 +605,30 @@ class MidiKeyboard extends HTMLElement {
         }
     }
 
+    clearCustomHighlights() {
+        this.customNoteColors = {};
+
+        var customHighlights = this.shadowRoot.querySelectorAll(".customHighlight");
+        for (var i = 0; i < customHighlights.length; i++) {
+            customHighlights[i].classList.remove("customHighlight");
+            customHighlights[i].style.removeProperty("--custom-note-color");
+        }
+    }
+
+    clearAll() {
+        this.clearPaint();
+        this.clearCustomHighlights();
+    }
+
+    clear() {
+        this.clearPaint();
+    }
+
     destroy() {
         this.currentMidiNotes = [];
         this.currentNotes = [];
         this.hoverMidiNotes = [];
+        this.customNoteColors = {};
 
         if (this.parentNode) {
             this.parentNode.removeChild(this);
@@ -658,7 +687,11 @@ class MidiKeyboard extends HTMLElement {
     }
 
     onClearClick() {
-        this.clear();
+        this.clearPaint();
+    }
+
+    onClearAllClick() {
+        this.clearAll();
     }
 
     onCloseClick() {
@@ -667,7 +700,8 @@ class MidiKeyboard extends HTMLElement {
 
     bindControls() {
         var paintToggle = this.shadowRoot.getElementById("hoverToggle");
-        var clearButton = this.shadowRoot.getElementById("clear");
+        var clearButton = this.shadowRoot.getElementById("clearPaint");
+        var clearAllButton = this.shadowRoot.getElementById("clearAll");
         var closeButton = this.shadowRoot.getElementById("close");
 
         if (paintToggle) {
@@ -679,8 +713,57 @@ class MidiKeyboard extends HTMLElement {
             clearButton.addEventListener("click", this.onClearClick);
         }
 
+        if (clearAllButton) {
+            clearAllButton.addEventListener("click", this.onClearAllClick);
+        }
+
         if (closeButton) {
             closeButton.addEventListener("click", this.onCloseClick);
+        }
+    }
+
+    setCustomNoteColor(midiNote, color) {
+        if (!Number.isInteger(midiNote) || typeof color !== "string" || color.trim() === "") {
+            return;
+        }
+
+        this.customNoteColors[midiNote] = color.trim();
+        this.applyCustomNoteColor(midiNote);
+    }
+
+    applyCustomNoteColor(midiNote) {
+        var key = this.shadowRoot.getElementById("key" + midiNote);
+        if (!key) {
+            return;
+        }
+
+        key.style.setProperty("--custom-note-color", this.customNoteColors[midiNote]);
+        key.classList.add("customHighlight");
+    }
+
+    applyCustomNoteColors() {
+        var noteNumbers = Object.keys(this.customNoteColors);
+        for (var i = 0; i < noteNumbers.length; i++) {
+            this.applyCustomNoteColor(Number(noteNumbers[i]));
+        }
+    }
+
+    onLaunchEvent(event) {
+        var detail = event.detail || {};
+        if (!Array.isArray(detail.notes)) {
+            return;
+        }
+
+        for (var i = 0; i < detail.notes.length; i++) {
+            var noteConfig = detail.notes[i] || {};
+            var noteName = noteConfig.nota || noteConfig.note;
+            var midiNote = this.getMidiFromNoteName(noteName);
+            if (midiNote === null) {
+                console.error("LaunchEvent piano note invalid -> " + noteName);
+                continue;
+            }
+
+            this.setCustomNoteColor(midiNote, noteConfig.color);
         }
     }
 }
@@ -742,14 +825,28 @@ window.Piano = {
         this.initOctave(startOctave, endOctave);
     },
 
-    clear: function () {
+    clearPaint: function () {
         var piano = this.getElement();
         if (!piano) {
             console.error("No se encontro ningun elemento <midi-keyboard>.");
             return;
         }
 
-        piano.clear();
+        piano.clearPaint();
+    },
+
+    clearAll: function () {
+        var piano = this.getElement();
+        if (!piano) {
+            console.error("No se encontro ningun elemento <midi-keyboard>.");
+            return;
+        }
+
+        piano.clearAll();
+    },
+
+    clear: function () {
+        this.clearPaint();
     },
 
     destroy: function () {

@@ -8,11 +8,11 @@ class StaffComponent extends HTMLElement {
 
         this.currentMidiNotes = [];
         this.hoverMidiNotes = [];
+        this.customNoteColors = {};
         this.startOctave = 0;
         this.endOctave = 8;
         this.minMidiNote = 0;
         this.maxMidiNote = 127;
-        this.middleCMidiNote = 60;
         this.clef = "SOL";
         this.lineSpacing = 10;
         this.guideLineCount = 4;
@@ -27,6 +27,7 @@ class StaffComponent extends HTMLElement {
         this.onNoteClick = this.onNoteClick.bind(this);
         this.onNoteMouseOver = this.onNoteMouseOver.bind(this);
         this.onNoteMouseOut = this.onNoteMouseOut.bind(this);
+        this.onLaunchEvent = this.onLaunchEvent.bind(this);
     }
 
     getClefConfig() {
@@ -56,7 +57,12 @@ class StaffComponent extends HTMLElement {
 
     connectedCallback() {
         this.render();
+        document.addEventListener("launch-event", this.onLaunchEvent);
         this.setupMIDI();
+    }
+
+    disconnectedCallback() {
+        document.removeEventListener("launch-event", this.onLaunchEvent);
     }
 
     render() {
@@ -149,9 +155,9 @@ class StaffComponent extends HTMLElement {
                     color: #fff;
                 }
 
-                .note.middleC {
-                    background-color: yellow;
-                    border-color: yellow;
+                .note.customHighlight {
+                    background-color: var(--custom-note-color);
+                    border-color: var(--custom-note-color);
                     color: #000;
                 }
 
@@ -385,9 +391,6 @@ class StaffComponent extends HTMLElement {
             if (noteName.indexOf("#") > -1) {
                 noteDiv.classList.add("accidental");
             }
-            if (midiNote === this.middleCMidiNote) {
-                noteDiv.classList.add("middleC");
-            }
             noteDiv.id = "note" + midiNote;
             noteDiv.dataset.note = midiNote;
             noteDiv.innerHTML = noteName.replace("#", "&#9839;");
@@ -400,6 +403,10 @@ class StaffComponent extends HTMLElement {
             }
             if (this.hoverMidiNotes.includes(midiNote)) {
                 noteDiv.classList.add("hover");
+            }
+            if (this.customNoteColors[midiNote]) {
+                noteDiv.style.setProperty("--custom-note-color", this.customNoteColors[midiNote]);
+                noteDiv.classList.add("customHighlight");
             }
 
             noteDiv.addEventListener("click", this.onNoteClick);
@@ -698,7 +705,7 @@ class StaffComponent extends HTMLElement {
         this.initOctave(startOctave, endOctave, lineSpacing, clef);
     }
 
-    clear() {
+    clearPaint() {
         this.currentMidiNotes = [];
         this.hoverMidiNotes = [];
         this.updateStatus();
@@ -714,12 +721,74 @@ class StaffComponent extends HTMLElement {
         }
     }
 
+    clearCustomHighlights() {
+        this.customNoteColors = {};
+
+        var customHighlights = this.shadowRoot.querySelectorAll(".customHighlight");
+        for (var i = 0; i < customHighlights.length; i++) {
+            customHighlights[i].classList.remove("customHighlight");
+            customHighlights[i].style.removeProperty("--custom-note-color");
+        }
+    }
+
+    clearAll() {
+        this.clearPaint();
+        this.clearCustomHighlights();
+    }
+
+    clear() {
+        this.clearPaint();
+    }
+
     destroy() {
         this.currentMidiNotes = [];
         this.hoverMidiNotes = [];
+        this.customNoteColors = {};
 
         if (this.parentNode) {
             this.parentNode.removeChild(this);
+        }
+    }
+
+    setCustomNoteColor(midiNote, color) {
+        if (!Number.isInteger(midiNote) || typeof color !== "string" || color.trim() === "") {
+            return;
+        }
+
+        this.customNoteColors[midiNote] = color.trim();
+        this.applyCustomNoteColor(midiNote);
+    }
+
+    applyCustomNoteColor(midiNote) {
+        var note = this.shadowRoot.getElementById("note" + midiNote);
+        if (!note) {
+            return;
+        }
+
+        note.style.setProperty("--custom-note-color", this.customNoteColors[midiNote]);
+        note.classList.add("customHighlight");
+    }
+
+    onLaunchEvent(event) {
+        var detail = event.detail || {};
+        if (!Array.isArray(detail.notes)) {
+            return;
+        }
+
+        for (var i = 0; i < detail.notes.length; i++) {
+            var noteConfig = detail.notes[i] || {};
+            var noteName = noteConfig.nota || noteConfig.note;
+            var midiNote = this.getMidiFromNoteName(noteName, true);
+            if (midiNote === null) {
+                console.error("LaunchEvent staff note invalid -> " + noteName);
+                continue;
+            }
+
+            if (midiNote < this.minMidiNote || midiNote > this.maxMidiNote) {
+                continue;
+            }
+
+            this.setCustomNoteColor(midiNote, noteConfig.color);
         }
     }
 }
@@ -798,11 +867,19 @@ window.Staff = {
         paintButton.appendChild(paintLabel);
 
         var clearButton = document.createElement("div");
-        clearButton.id = "staffs-clear";
+        clearButton.id = "staffs-clear-paint";
         clearButton.className = "button";
-        clearButton.textContent = "Clear";
+        clearButton.textContent = "Clear Paint";
         clearButton.addEventListener("click", () => {
-            this.clear();
+            this.clearPaint();
+        });
+
+        var clearAllButton = document.createElement("div");
+        clearAllButton.id = "staffs-clear-all";
+        clearAllButton.className = "button";
+        clearAllButton.textContent = "Clear All";
+        clearAllButton.addEventListener("click", () => {
+            this.clearAll();
         });
 
         var closeButton = document.createElement("div");
@@ -815,6 +892,7 @@ window.Staff = {
 
         controls.appendChild(paintButton);
         controls.appendChild(clearButton);
+        controls.appendChild(clearAllButton);
         controls.appendChild(closeButton);
         container.appendChild(controls);
     },
@@ -920,7 +998,7 @@ window.Staff = {
         this.initOctave(startOctave, endOctave, lineSpacing, clef);
     },
 
-    clear: function () {
+    clearPaint: function () {
         var container = document.getElementById("staffs-container");
         if (!container) {
             console.error("No #staffs-container found in DOM.");
@@ -931,11 +1009,33 @@ window.Staff = {
         Object.keys(this.staffs).forEach(function (staffId) {
             var staff = self.staffs[staffId];
             if (staff && document.body.contains(staff)) {
-                staff.clear();
+                staff.clearPaint();
             } else {
                 delete self.staffs[staffId];
             }
         });
+    },
+
+    clearAll: function () {
+        var container = document.getElementById("staffs-container");
+        if (!container) {
+            console.error("No #staffs-container found in DOM.");
+            return;
+        }
+
+        var self = this;
+        Object.keys(this.staffs).forEach(function (staffId) {
+            var staff = self.staffs[staffId];
+            if (staff && document.body.contains(staff)) {
+                staff.clearAll();
+            } else {
+                delete self.staffs[staffId];
+            }
+        });
+    },
+
+    clear: function () {
+        this.clearPaint();
     },
 
     destroy: function () {
