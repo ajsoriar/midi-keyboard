@@ -21,6 +21,7 @@ class StaffComponent extends HTMLElement {
         this.noteSize = 20;
         this.verticalPadding = 20;
         this.staffOffset = 0;
+        this.paintIsOn = true;
 
         this.onMIDIMessage = this.onMIDIMessage.bind(this);
         this.onNoteClick = this.onNoteClick.bind(this);
@@ -452,6 +453,10 @@ class StaffComponent extends HTMLElement {
     }
 
     onNoteClick(event) {
+        if (!this.paintIsOn) {
+            return;
+        }
+
         this.addNote(Number(event.currentTarget.dataset.note));
     }
 
@@ -697,7 +702,25 @@ class StaffComponent extends HTMLElement {
         this.currentMidiNotes = [];
         this.hoverMidiNotes = [];
         this.updateStatus();
-        this.shadowRoot.getElementById("staffContainer").innerHTML = "";
+
+        var activeNotes = this.shadowRoot.querySelectorAll(".active");
+        for (var i = 0; i < activeNotes.length; i++) {
+            activeNotes[i].classList.remove("active");
+        }
+
+        var hoverNotes = this.shadowRoot.querySelectorAll(".hover");
+        for (var j = 0; j < hoverNotes.length; j++) {
+            hoverNotes[j].classList.remove("hover");
+        }
+    }
+
+    destroy() {
+        this.currentMidiNotes = [];
+        this.hoverMidiNotes = [];
+
+        if (this.parentNode) {
+            this.parentNode.removeChild(this);
+        }
     }
 }
 
@@ -705,6 +728,107 @@ customElements.define("music-staff", StaffComponent);
 
 window.Staff = {
     staffs: {},
+    paintIsOn: true,
+
+    bindControls: function (container) {
+        var controls = container.querySelector("#staffs-component-controls");
+        if (controls) {
+            return;
+        }
+
+        if (!document.getElementById("staffs-component-controls-style")) {
+            var style = document.createElement("style");
+            style.id = "staffs-component-controls-style";
+            style.textContent = "\n" +
+                "#staffs-container {\n" +
+                "    position: relative;\n" +
+                "}\n" +
+                "#staffs-component-controls {\n" +
+                "    position: absolute;\n" +
+                "    top: 0;\n" +
+                "    right: 0;\n" +
+                "    display: flex;\n" +
+                "    gap: 2px;\n" +
+                "    padding: 4px;\n" +
+                "    z-index: 1000;\n" +
+                "}\n" +
+                "#staffs-component-controls .button {\n" +
+                "    padding: 2px 4px;\n" +
+                "    border: 2px solid #333;\n" +
+                "    background-color: #f0f0f0;\n" +
+                "    color: #000;\n" +
+                "    border-radius: 1px;\n" +
+                "    cursor: pointer;\n" +
+                "    font-size: 10px;\n" +
+                "    font-family: sans-serif;\n" +
+                "    font-weight: 700;\n" +
+                "}\n" +
+                "#staffs-component-controls input {\n" +
+                "    margin: 0 3px 0 0;\n" +
+                "    vertical-align: middle;\n" +
+                "}\n" +
+                "#staffs-component-controls label {\n" +
+                "    cursor: pointer;\n" +
+                "}\n" +
+                "#staffs-component-controls .button:hover {\n" +
+                "    background-color: #e0e0e0;\n" +
+                "}\n";
+            document.head.appendChild(style);
+        }
+
+        controls = document.createElement("div");
+        controls.id = "staffs-component-controls";
+
+        var paintButton = document.createElement("div");
+        paintButton.className = "button";
+
+        var paintToggle = document.createElement("input");
+        paintToggle.id = "staffs-paint";
+        paintToggle.type = "checkbox";
+        paintToggle.checked = this.paintIsOn;
+        paintToggle.addEventListener("change", () => {
+            this.setPaintIsOn(paintToggle.checked);
+        });
+
+        var paintLabel = document.createElement("label");
+        paintLabel.htmlFor = "staffs-paint";
+        paintLabel.textContent = "Paint";
+
+        paintButton.appendChild(paintToggle);
+        paintButton.appendChild(paintLabel);
+
+        var clearButton = document.createElement("div");
+        clearButton.id = "staffs-clear";
+        clearButton.className = "button";
+        clearButton.textContent = "Clear";
+        clearButton.addEventListener("click", () => {
+            this.clear();
+        });
+
+        var closeButton = document.createElement("div");
+        closeButton.id = "staffs-close";
+        closeButton.className = "button";
+        closeButton.textContent = "X";
+        closeButton.addEventListener("click", () => {
+            this.destroy();
+        });
+
+        controls.appendChild(paintButton);
+        controls.appendChild(clearButton);
+        controls.appendChild(closeButton);
+        container.appendChild(controls);
+    },
+
+    setPaintIsOn: function (paintIsOn) {
+        var self = this;
+        this.paintIsOn = paintIsOn;
+        Object.keys(this.staffs).forEach(function (staffId) {
+            var staff = self.staffs[staffId];
+            if (staff) {
+                staff.paintIsOn = paintIsOn;
+            }
+        });
+    },
 
     normalizeNotes: function (notes) {
         if (Array.isArray(notes)) {
@@ -746,10 +870,13 @@ window.Staff = {
             return null;
         }
 
+        this.bindControls(container);
+
         var staff = document.getElementById(elementId);
         if (!staff) {
             staff = document.createElement("music-staff");
             staff.id = elementId;
+            staff.paintIsOn = this.paintIsOn;
             container.appendChild(staff);
         }
 
@@ -800,8 +927,26 @@ window.Staff = {
             return;
         }
 
-        container.innerHTML = "";
+        var self = this;
+        Object.keys(this.staffs).forEach(function (staffId) {
+            var staff = self.staffs[staffId];
+            if (staff && document.body.contains(staff)) {
+                staff.clear();
+            } else {
+                delete self.staffs[staffId];
+            }
+        });
+    },
+
+    destroy: function () {
+        var container = document.getElementById("staffs-container");
+        if (!container) {
+            console.error("No #staffs-container found in DOM.");
+            return;
+        }
+
         this.staffs = {};
+        container.parentNode.removeChild(container);
     },
 
     highlight: function (notes) {

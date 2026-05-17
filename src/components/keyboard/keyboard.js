@@ -13,16 +13,21 @@ class MidiKeyboard extends HTMLElement {
         this.maxMidiNote = 127;
         this.middleCMidiNote = 60;
         this.whiteKeyWidth = 25;
+        this.paintIsOn = true;
 
         this.onMIDIMessage = this.onMIDIMessage.bind(this);
         this.onKeyboardClick = this.onKeyboardClick.bind(this);
         this.onKeyMouseOver = this.onKeyMouseOver.bind(this);
         this.onKeyMouseOut = this.onKeyMouseOut.bind(this);
+        this.onPaintChange = this.onPaintChange.bind(this);
+        this.onClearClick = this.onClearClick.bind(this);
+        this.onCloseClick = this.onCloseClick.bind(this);
     }
 
     connectedCallback() {
         this.render();
         this.bindKeyboardClicks();
+        this.bindControls();
         this.setupMIDI();
     }
 
@@ -34,11 +39,12 @@ class MidiKeyboard extends HTMLElement {
                     font-size: 13px;
                     font-family: sans-serif;
                     font-weight: 700;
+                    position: relative;
                 }
 
                 .status {
                     min-height: 24px;
-                    margin-bottom: 8px;
+                    margin-bottom: 2px;
                 }
 
                 #keyboard {
@@ -148,11 +154,48 @@ class MidiKeyboard extends HTMLElement {
                     font-size: 13px;
                     z-index: 0;
                 }
+
+                #component-controls {
+                    position: absolute;
+                    top: 0;
+                    right: 0;
+                    display: flex;
+                    gap: 2px;
+                    padding: 4px;
+                }
+
+                .button {             
+                    padding: 2px 4px;
+                    border: 2px solid #333;
+                    background-color: #f0f0f0;
+                    color: #000;
+                    border-radius: 1px;
+                    cursor: pointer;
+                    font-size: 10px;
+                }
+
+                .button:hover {
+                    background-color: #e0e0e0;
+                }
+
+                #hoverToggle {
+                    margin: 0 3px 0 0;
+                    vertical-align: middle;
+                }
+
+                .button label {
+                    cursor: pointer;
+                }
             </style>
 
             <div id="currentMidiNotes" class="status"></div>
             <div id="currentNotes" class="status"></div>
             <div id="keyboard"></div>
+            <div id="component-controls">
+                <div class="button"><input id="hoverToggle" type="checkbox" checked><label for="hoverToggle">Paint</label></div>
+                <div id="clear" class="button">Clear</div>
+                <div id="close" class="button">X</div>
+            </div>
         `;
     }
 
@@ -543,13 +586,24 @@ class MidiKeyboard extends HTMLElement {
     }
 
     clear() {
-        var keyboard = this.shadowRoot.getElementById("keyboard");
-        keyboard.innerHTML = "";
-        keyboard.style.width = "0";
+        this.currentMidiNotes = [];
+        this.currentNotes = [];
+        this.updateStatus();
+
+        var activeKeys = this.shadowRoot.querySelectorAll(".activeKey");
+        for (var i = 0; i < activeKeys.length; i++) {
+            activeKeys[i].classList.remove("activeKey");
+        }
+    }
+
+    destroy() {
         this.currentMidiNotes = [];
         this.currentNotes = [];
         this.hoverMidiNotes = [];
-        this.updateStatus();
+
+        if (this.parentNode) {
+            this.parentNode.removeChild(this);
+        }
     }
 
     getEventKey(event) {
@@ -562,6 +616,10 @@ class MidiKeyboard extends HTMLElement {
     }
 
     onKeyboardClick(event) {
+        if (!this.paintIsOn) {
+            return;
+        }
+
         var key = this.getEventKey(event);
         if (!key) {
             return;
@@ -593,6 +651,37 @@ class MidiKeyboard extends HTMLElement {
         keyboard.addEventListener("click", this.onKeyboardClick);
         keyboard.addEventListener("mouseover", this.onKeyMouseOver);
         keyboard.addEventListener("mouseout", this.onKeyMouseOut);
+    }
+
+    onPaintChange(event) {
+        this.paintIsOn = event.currentTarget.checked;
+    }
+
+    onClearClick() {
+        this.clear();
+    }
+
+    onCloseClick() {
+        this.destroy();
+    }
+
+    bindControls() {
+        var paintToggle = this.shadowRoot.getElementById("hoverToggle");
+        var clearButton = this.shadowRoot.getElementById("clear");
+        var closeButton = this.shadowRoot.getElementById("close");
+
+        if (paintToggle) {
+            this.paintIsOn = paintToggle.checked;
+            paintToggle.addEventListener("change", this.onPaintChange);
+        }
+
+        if (clearButton) {
+            clearButton.addEventListener("click", this.onClearClick);
+        }
+
+        if (closeButton) {
+            closeButton.addEventListener("click", this.onCloseClick);
+        }
     }
 }
 
@@ -661,6 +750,16 @@ window.Piano = {
         }
 
         piano.clear();
+    },
+
+    destroy: function () {
+        var piano = this.getElement();
+        if (!piano) {
+            console.error("No se encontro ningun elemento <midi-keyboard>.");
+            return;
+        }
+
+        piano.destroy();
     },
 
     highlight: function (notes) {
