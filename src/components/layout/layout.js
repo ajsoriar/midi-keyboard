@@ -9,12 +9,12 @@ class InstrumentLayout extends HTMLElement {
                 spriteX: 0,
                 target: "staffs-container",
                 notes: [
-                    { nota: "MI2", color: "#ff4d4d" },
-                    { nota: "LA2", color: "#ff9f1c" },
-                    { nota: "RE3", color: "#ffd166" },
-                    { nota: "SOL3", color: "#06d6a0" },
-                    { nota: "SI3", color: "#118ab2" },
-                    { nota: "MI4", color: "#9b5de5" }
+                    { note: "MI2", color: "#ff4d4d" },
+                    { note: "LA2", color: "#ff9f1c" },
+                    { note: "RE3", color: "#ffd166" },
+                    { note: "SOL3", color: "#06d6a0" },
+                    { note: "SI3", color: "#118ab2" },
+                    { note: "MI4", color: "#9b5de5" }
                 ]
             },
             {
@@ -23,7 +23,7 @@ class InstrumentLayout extends HTMLElement {
                 spriteX: 1,
                 target: "piano",
                 notes: [
-                    { nota: "DO4", color: "#ffd60a" }
+                    { note: "DO4", color: "#ffd60a" }
                 ]
             },
             {
@@ -32,10 +32,10 @@ class InstrumentLayout extends HTMLElement {
                 spriteX: 2,
                 target: "staffs-container",
                 notes: [
-                    { nota: "DO2", color: "#7bdff2" },
-                    { nota: "SOL2", color: "#b2f7ef" },
-                    { nota: "RE3", color: "#ffb703" },
-                    { nota: "LA3", color: "#f7d6e0" }
+                    { note: "DO2", color: "#7bdff2" },
+                    { note: "SOL2", color: "#b2f7ef" },
+                    { note: "RE3", color: "#ffb703" },
+                    { note: "LA3", color: "#f7d6e0" }
                 ]
             },
             {
@@ -44,10 +44,10 @@ class InstrumentLayout extends HTMLElement {
                 spriteX: 3,
                 target: "staffs-container",
                 notes: [
-                    { nota: "MI1", color: "#8ecae6" },
-                    { nota: "LA1", color: "#219ebc" },
-                    { nota: "RE2", color: "#ffb703" },
-                    { nota: "SOL2", color: "#fb8500" }
+                    { note: "MI1", color: "#8ecae6" },
+                    { note: "LA1", color: "#219ebc" },
+                    { note: "RE2", color: "#ffb703" },
+                    { note: "SOL2", color: "#fb8500" }
                 ]
             },
             {
@@ -56,10 +56,10 @@ class InstrumentLayout extends HTMLElement {
                 spriteX: 4,
                 target: "staffs-container",
                 notes: [
-                    { nota: "DO3", color: "#cdb4db" },
-                    { nota: "SOL3", color: "#ffc8dd" },
-                    { nota: "RE4", color: "#ffafcc" },
-                    { nota: "LA4", color: "#bde0fe" }
+                    { note: "DO3", color: "#cdb4db" },
+                    { note: "SOL3", color: "#ffc8dd" },
+                    { note: "RE4", color: "#ffafcc" },
+                    { note: "LA4", color: "#bde0fe" }
                 ]
             },
             {
@@ -68,10 +68,10 @@ class InstrumentLayout extends HTMLElement {
                 spriteX: 5,
                 target: "staffs-container",
                 notes: [
-                    { nota: "SOL3", color: "#00bbf9" },
-                    { nota: "RE4", color: "#00f5d4" },
-                    { nota: "LA4", color: "#fee440" },
-                    { nota: "MI5", color: "#f15bb5" }
+                    { note: "SOL3", color: "#00bbf9" },
+                    { note: "RE4", color: "#00f5d4" },
+                    { note: "LA4", color: "#fee440" },
+                    { note: "MI5", color: "#f15bb5" }
                 ]
             }
         ];
@@ -153,7 +153,7 @@ class InstrumentLayout extends HTMLElement {
         var id = event.currentTarget.getAttribute("data-id");
         var instrument = this.getInstrumentById(id);
 
-        var launchEvent = {
+        var customHighlightsEvent = {
             notes: instrument.notes
         };
 
@@ -161,7 +161,7 @@ class InstrumentLayout extends HTMLElement {
             id: instrument.id,
             name: instrument.name,
             notes: instrument.notes,
-            launchEvent: launchEvent
+            customHighlightsEvent: customHighlightsEvent
         };
 
         console.log(instrument.name);
@@ -175,8 +175,8 @@ class InstrumentLayout extends HTMLElement {
             composed: true
         }));
 
-        document.dispatchEvent(new CustomEvent("launch-event", {
-            detail: launchEvent
+        document.dispatchEvent(new CustomEvent("set-custom-highlights", {
+            detail: customHighlightsEvent
         }));
     }
 }

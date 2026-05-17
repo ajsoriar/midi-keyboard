@@ -27,7 +27,7 @@ class StaffComponent extends HTMLElement {
         this.onNoteClick = this.onNoteClick.bind(this);
         this.onNoteMouseOver = this.onNoteMouseOver.bind(this);
         this.onNoteMouseOut = this.onNoteMouseOut.bind(this);
-        this.onLaunchEvent = this.onLaunchEvent.bind(this);
+        this.onSetCustomHighlightsEvent = this.onSetCustomHighlightsEvent.bind(this);
     }
 
     getClefConfig() {
@@ -57,12 +57,12 @@ class StaffComponent extends HTMLElement {
 
     connectedCallback() {
         this.render();
-        document.addEventListener("launch-event", this.onLaunchEvent);
+        document.addEventListener("set-custom-highlights", this.onSetCustomHighlightsEvent);
         this.setupMIDI();
     }
 
     disconnectedCallback() {
-        document.removeEventListener("launch-event", this.onLaunchEvent);
+        document.removeEventListener("set-custom-highlights", this.onSetCustomHighlightsEvent);
     }
 
     render() {
@@ -769,18 +769,18 @@ class StaffComponent extends HTMLElement {
         note.classList.add("customHighlight");
     }
 
-    onLaunchEvent(event) {
+    onSetCustomHighlightsEvent(event) {
         var detail = event.detail || {};
         if (!Array.isArray(detail.notes)) {
-            return;
+            throw new Error("setCustomHighlights expects detail.notes to be an array.");
         }
 
         for (var i = 0; i < detail.notes.length; i++) {
             var noteConfig = detail.notes[i] || {};
-            var noteName = noteConfig.nota || noteConfig.note;
+            var noteName = noteConfig.note;
             var midiNote = this.getMidiFromNoteName(noteName, true);
             if (midiNote === null) {
-                console.error("LaunchEvent staff note invalid -> " + noteName);
+                console.error("setCustomHighlights staff note invalid -> " + noteName);
                 continue;
             }
 

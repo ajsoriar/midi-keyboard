@@ -6,8 +6,8 @@ import "./components/metronome/metronome.js";
 import "./components/speaker/speaker.js";
 import "./components/layout/layout.js";
 
-window.LaunchEvent = function (detail) {
-    document.dispatchEvent(new CustomEvent("launch-event", {
+window.setCustomHighlights = function (detail) {
+    document.dispatchEvent(new CustomEvent("set-custom-highlights", {
         detail: detail
     }));
 };
@@ -44,9 +44,9 @@ window.Piano.initRange("A0", "C8");
 window.Staff.initRange("C4", "C8", "SOL");
 window.Staff.initRange("A0", "C4", "FA");
 
-window.LaunchEvent({
+window.setCustomHighlights({
     notes: [
-        { nota: "DO4", color: "yellow" }
+        { note: "DO4", color: "yellow" }
     ]
 });
 

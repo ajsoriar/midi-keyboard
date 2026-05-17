@@ -118,12 +118,12 @@ Speaker.init();
 
 ## Events
 
-Use `LaunchEvent` to highlight notes across components. Components only care about the `notes` payload.
+Use `setCustomHighlights` to apply persistent custom highlights across components. Components only care about the `notes` payload.
 
 ```js
-LaunchEvent({
+setCustomHighlights({
     notes: [
-        { nota: "DO4", color: "yellow" }
+        { note: "DO4", color: "yellow" }
     ]
 });
 ```

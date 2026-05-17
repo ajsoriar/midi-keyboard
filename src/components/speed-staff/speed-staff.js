@@ -20,18 +20,18 @@ class SpeedStaffComponent extends HTMLElement {
         this.onNoteUnhover = this.onNoteUnhover.bind(this);
         this.onLineMouseOver = this.onLineMouseOver.bind(this);
         this.onLineMouseOut = this.onLineMouseOut.bind(this);
-        this.onLaunchEvent = this.onLaunchEvent.bind(this);
+        this.onSetCustomHighlightsEvent = this.onSetCustomHighlightsEvent.bind(this);
     }
 
     connectedCallback() {
         this.bindNoteEvents();
-        document.addEventListener("launch-event", this.onLaunchEvent);
+        document.addEventListener("set-custom-highlights", this.onSetCustomHighlightsEvent);
         this.render();
     }
 
     disconnectedCallback() {
         this.unbindNoteEvents();
-        document.removeEventListener("launch-event", this.onLaunchEvent);
+        document.removeEventListener("set-custom-highlights", this.onSetCustomHighlightsEvent);
     }
 
     init(options) {
@@ -478,17 +478,17 @@ class SpeedStaffComponent extends HTMLElement {
         this.dispatchNoteHoverEvent("staff-note-unhover", Number(line.dataset.midiNote));
     }
 
-    onLaunchEvent(event) {
+    onSetCustomHighlightsEvent(event) {
         var detail = event.detail || {};
         if (!Array.isArray(detail.notes)) {
-            return;
+            throw new Error("setCustomHighlights expects detail.notes to be an array.");
         }
 
         this.clearGuideLineHighlights();
 
         for (var i = 0; i < detail.notes.length; i++) {
             var noteConfig = detail.notes[i] || {};
-            var noteName = noteConfig.nota || noteConfig.note;
+            var noteName = noteConfig.note;
             if (!noteName || !noteConfig.color) {
                 continue;
             }

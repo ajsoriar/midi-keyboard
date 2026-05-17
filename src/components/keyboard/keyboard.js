@@ -23,19 +23,19 @@ class MidiKeyboard extends HTMLElement {
         this.onClearClick = this.onClearClick.bind(this);
         this.onClearAllClick = this.onClearAllClick.bind(this);
         this.onCloseClick = this.onCloseClick.bind(this);
-        this.onLaunchEvent = this.onLaunchEvent.bind(this);
+        this.onSetCustomHighlightsEvent = this.onSetCustomHighlightsEvent.bind(this);
     }
 
     connectedCallback() {
         this.render();
         this.bindKeyboardClicks();
         this.bindControls();
-        document.addEventListener("launch-event", this.onLaunchEvent);
+        document.addEventListener("set-custom-highlights", this.onSetCustomHighlightsEvent);
         this.setupMIDI();
     }
 
     disconnectedCallback() {
-        document.removeEventListener("launch-event", this.onLaunchEvent);
+        document.removeEventListener("set-custom-highlights", this.onSetCustomHighlightsEvent);
     }
 
     render() {
@@ -748,18 +748,18 @@ class MidiKeyboard extends HTMLElement {
         }
     }
 
-    onLaunchEvent(event) {
+    onSetCustomHighlightsEvent(event) {
         var detail = event.detail || {};
         if (!Array.isArray(detail.notes)) {
-            return;
+            throw new Error("setCustomHighlights expects detail.notes to be an array.");
         }
 
         for (var i = 0; i < detail.notes.length; i++) {
             var noteConfig = detail.notes[i] || {};
-            var noteName = noteConfig.nota || noteConfig.note;
+            var noteName = noteConfig.note;
             var midiNote = this.getMidiFromNoteName(noteName);
             if (midiNote === null) {
-                console.error("LaunchEvent piano note invalid -> " + noteName);
+                console.error("setCustomHighlights piano note invalid -> " + noteName);
                 continue;
             }
 
