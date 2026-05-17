@@ -645,16 +645,18 @@ class MidiKeyboard extends HTMLElement {
     }
 
     onKeyboardClick(event) {
-        if (!this.paintIsOn) {
-            return;
-        }
-
         var key = this.getEventKey(event);
         if (!key) {
             return;
         }
 
-        this.addNote(Number(key.getAttribute("data-note")));
+        var note = Number(key.getAttribute("data-note"));
+
+        this.dispatchNotePressedEvent(note);
+
+        if (this.paintIsOn) {
+            this.addNote(note);
+        }
     }
 
     onKeyMouseOver(event) {
