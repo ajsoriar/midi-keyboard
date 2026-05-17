@@ -77,7 +77,7 @@ window.SpeedStaff.init({
     },
     position: {
         xPercentage: "15",
-        yPx: "325",
+        yPx: "220",
     },
     rows: {
         guideLinesAbove: 5,

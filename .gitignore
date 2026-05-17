@@ -1,3 +1,64 @@
-.vscode
-assets
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
+.vite
+node_modules
+dist
+dist-ssr
+*.local
+build_assets
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# User-specific files
+.settings
+/.gitmodules
+.tmp
+OLD*
+dist.*
+.favorites.json
+*.zip
+
+# build templates
+*.sign
+
+# build output
+*.apk
+*.ipk
+*.wgt
+
+# misc
+._*
+_.*
+
+# build temporary files
+.sign/
+*.wgt
+author-signature*.xml
+signature*.xml
+.manifest.tmp
+
+# logs
+/console/log/logs/*
+
+# media files
+*.mp3
+*.wav
+*.ogg
+*.flac
