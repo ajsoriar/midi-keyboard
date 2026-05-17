@@ -204,6 +204,18 @@ class SpeedStaffComponent extends HTMLElement {
                     background-image: linear-gradient(#d0d0d0, #d0d0d0);
                     background-size: 100% 1px;
                 }
+
+                .clave {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-image: url('./assets/clave.png');
+                    background-size: contain;
+                    background-repeat: no-repeat;
+                    background-position: center;
+                }
             </style>
 
             <div class="speed-staff">
@@ -212,6 +224,7 @@ class SpeedStaffComponent extends HTMLElement {
                         ${this.getRowsHtml()}
                     </tbody>
                 </table>
+                <div id="clave" class="clave"></div>
             </div>
         `;
     }
