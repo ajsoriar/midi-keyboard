@@ -1,6 +1,6 @@
-# MIDI Note Visualizer
+# MIDI Note Trainer
 
-A small web app that reads notes from a connected MIDI keyboard and visualizes them on a piano keyboard, staff views, and speed-staff practice lanes. It uses the browser Web MIDI API, so note capture requires a real MIDI keyboard or MIDI controller connected to a compatible browser.
+A small web app that reads notes from a connected MIDI keyboard and visualizes them on a piano keyboard, staff views, and speed-staff practice lanes. It uses the browser Web MIDI API, so note capture [...]
 
 ![MIDI Note Visualizer UI](assets/app-overview.png)
 
